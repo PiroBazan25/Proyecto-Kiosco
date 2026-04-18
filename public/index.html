@@ -946,30 +946,127 @@ function guardarMensajeTicket() {
 // ==================== SUPERADMIN ====================
 async function renderLocales() {
   if (currentUser?.rol !== 'superadmin') return;
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="modalLocal()">+ Nuevo local</button>`;
   document.getElementById('main-content').innerHTML = '<div class="card">Cargando locales...</div>';
   try {
     const res = await fetch(`${API}/api/locales`, { headers: getHeaders() });
     const locales = res.ok ? await res.json() : [];
     document.getElementById('main-content').innerHTML = `
+      <div class="grid-3" style="margin-bottom:16px">
+        <div class="metric"><div class="metric-label">Locales activos</div><div class="metric-val">${locales.filter(l=>l.suscripcion_activa).length}</div></div>
+        <div class="metric"><div class="metric-label">Total locales</div><div class="metric-val">${locales.length}</div></div>
+        <div class="metric"><div class="metric-label">Vencidos</div><div class="metric-val" style="color:var(--danger)">${locales.filter(l=>!l.suscripcion_activa).length}</div></div>
+      </div>
       <div class="card">
         <div class="card-title">🏢 Todos los locales</div>
-        ${locales.length === 0 ? '<p style="color:var(--muted)">No hay locales registrados</p>' : `
+        ${locales.length === 0 ? '<p style="color:var(--muted)">No hay locales registrados. Creá el primero.</p>' : `
         <table>
-          <thead><tr><th>Local</th><th>Dirección</th><th>Plan</th><th>Estado</th><th>Vence</th></tr></thead>
+          <thead><tr><th>Local</th><th>Dirección</th><th>Plan</th><th>Estado</th><th>Vence</th><th></th></tr></thead>
           <tbody>
             ${locales.map(l=>`
               <tr>
                 <td><strong>${l.nombre}</strong></td>
                 <td>${l.direccion||'-'}</td>
                 <td>${l.plan}</td>
-                <td class="${l.suscripcion_activa?'badge-success':'badge-danger'}">${l.suscripcion_activa?'Activo':'Vencido'}</td>
+                <td><span class="badge ${l.suscripcion_activa?'badge-success':'badge-danger'}">${l.suscripcion_activa?'Activo':'Vencido'}</span></td>
                 <td>${l.suscripcion_vence||'-'}</td>
+                <td>
+                  <button class="btn btn-sm" onclick="toggleSuscripcion(${l.id}, ${l.suscripcion_activa})">${l.suscripcion_activa?'⛔ Desactivar':'✅ Activar'}</button>
+                  <button class="btn btn-sm" onclick="modalLocal(${l.id}, ${JSON.stringify(l).replace(/"/g, '&quot;')})">✏️</button>
+                </td>
               </tr>`).join('')}
           </tbody>
         </table>`}
       </div>`;
   } catch(e) {
     document.getElementById('main-content').innerHTML = '<div class="card">Error cargando locales</div>';
+  }
+}
+
+function modalLocal(id = null, local = null) {
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)cerrarModal()">
+      <div class="modal">
+        <h3 style="margin-bottom:16px">${id ? 'Editar local' : 'Nuevo local'}</h3>
+        <div class="lbl">Nombre del negocio</div>
+        <input class="inp" id="local-nombre" value="${local?.nombre||''}" style="margin-bottom:12px">
+        <div class="lbl">Dirección</div>
+        <input class="inp" id="local-direccion" value="${local?.direccion||''}" style="margin-bottom:12px">
+        <div class="lbl">Teléfono</div>
+        <input class="inp" id="local-telefono" value="${local?.telefono||''}" style="margin-bottom:12px">
+        <div class="lbl">Plan</div>
+        <select class="inp" id="local-plan" style="margin-bottom:12px">
+          <option value="basico" ${local?.plan==='basico'?'selected':''}>Básico</option>
+          <option value="premium" ${local?.plan==='premium'?'selected':''}>Premium</option>
+        </select>
+        <div class="lbl">Vence</div>
+        <input class="inp" type="date" id="local-vence" value="${local?.suscripcion_vence||''}" style="margin-bottom:16px">
+        ${!id ? `
+        <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+          <div style="font-weight:500;margin-bottom:12px">👔 Datos del dueño</div>
+          <div class="lbl">Nombre</div>
+          <input class="inp" id="dueno-nombre" style="margin-bottom:12px">
+          <div class="lbl">Email</div>
+          <input class="inp" type="email" id="dueno-email" style="margin-bottom:12px">
+          <div class="lbl">PIN</div>
+          <input class="inp" type="password" id="dueno-pin" placeholder="PIN de acceso" style="margin-bottom:12px">
+        </div>` : ''}
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="cerrarModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="guardarLocal(${id||'null'})">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function guardarLocal(id) {
+  const nombre = document.getElementById('local-nombre').value;
+  if (!nombre) { toast('El nombre es obligatorio', 'error'); return; }
+
+  const body = {
+    nombre,
+    direccion: document.getElementById('local-direccion').value,
+    telefono: document.getElementById('local-telefono').value,
+    plan: document.getElementById('local-plan').value,
+    vence: document.getElementById('local-vence').value
+  };
+
+  try {
+    if (!id) {
+      const duenoNombre = document.getElementById('dueno-nombre').value;
+      const duenoEmail = document.getElementById('dueno-email').value;
+      const duenoPin = document.getElementById('dueno-pin').value;
+      if (!duenoNombre || !duenoEmail || !duenoPin) {
+        toast('Completá todos los datos del dueño', 'error'); return;
+      }
+      body.dueno = { nombre: duenoNombre, email: duenoEmail, pin: duenoPin };
+    }
+
+    const url = id ? `${API}/api/locales/${id}` : `${API}/api/locales`;
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: getHeaders(), body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Error al guardar', 'error'); return; }
+    toast('✅ Local guardado correctamente', 'success');
+    cerrarModal();
+    renderLocales();
+  } catch(e) {
+    toast('Error de conexión', 'error');
+  }
+}
+
+async function toggleSuscripcion(id, activa) {
+  try {
+    const vence = activa ? null : new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0];
+    await fetch(`${API}/api/locales/${id}/suscripcion`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ activa: !activa, vence })
+    });
+    toast(`✅ Suscripción ${activa ? 'desactivada' : 'activada'}`, 'success');
+    renderLocales();
+  } catch(e) {
+    toast('Error de conexión', 'error');
   }
 }
 

@@ -23,11 +23,49 @@ router.post('/', verificarToken, async (req, res) => {
   if (req.usuario.rol !== 'superadmin') {
     return res.status(403).json({ error: 'Sin permiso' });
   }
-  const { nombre, direccion, telefono, plan } = req.body;
+  const { nombre, direccion, telefono, plan, vence, dueno } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const localResult = await client.query(
+      'INSERT INTO locales (nombre, direccion, telefono, plan, suscripcion_vence) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [nombre, direccion, telefono, plan || 'basico', vence]
+    );
+    const local = localResult.rows[0];
+
+    if (dueno) {
+      const bcrypt = require('bcryptjs');
+      const pinHash = await bcrypt.hash(dueno.pin, 10);
+      await client.query(
+        'INSERT INTO usuarios (local_id, nombre, email, pin_hash, rol) VALUES ($1,$2,$3,$4,$5)',
+        [local.id, dueno.nombre, dueno.email, pinHash, 'admin_local']
+      );
+    }
+
+    await client.query('COMMIT');
+    res.json(local);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.code === '23505') {
+      res.status(400).json({ error: 'El email del dueño ya está registrado' });
+    } else {
+      res.status(500).json({ error: err.message });
+    }
+  } finally {
+    client.release();
+  }
+});
+
+router.put('/:id', verificarToken, async (req, res) => {
+  if (req.usuario.rol !== 'superadmin') {
+    return res.status(403).json({ error: 'Sin permiso' });
+  }
+  const { nombre, direccion, telefono, plan, vence } = req.body;
   try {
     const result = await pool.query(
-      'INSERT INTO locales (nombre, direccion, telefono, plan) VALUES ($1,$2,$3,$4) RETURNING *',
-      [nombre, direccion, telefono, plan || 'basico']
+      'UPDATE locales SET nombre=$1, direccion=$2, telefono=$3, plan=$4, suscripcion_vence=$5 WHERE id=$6 RETURNING *',
+      [nombre, direccion, telefono, plan, vence, req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) {
