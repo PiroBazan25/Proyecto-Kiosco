@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KioscoManager - Sistema Multitenant</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--r:8px;--rl:12px}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f2f5;transition:all .2s}
+.light-theme{--bg:#f0f2f5;--surface:#fff;--surface2:#f8fafc;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#3b82f6;--accent2:#10b981;--accent3:#f59e0b;--danger:#ef4444;--success:#22c55e;--sidebar:#1e293b;--sidebar-text:#f1f5f9}
+.dark-theme{--bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;--text:#f1f5f9;--muted:#94a3b8;--accent:#60a5fa;--accent2:#34d399;--accent3:#fbbf24;--danger:#f87171;--success:#4ade80;--sidebar:#020617;--sidebar-text:#e2e8f0}
+body{background:var(--bg);color:var(--text)}
+.app{display:flex;min-height:100vh}
+.sidebar{width:260px;background:var(--sidebar);color:var(--sidebar-text);display:flex;flex-direction:column;transition:.2s}
+.sidebar-header{padding:20px;border-bottom:1px solid rgba(255,255,255,.1)}
+.sidebar-header h2{font-size:18px}
+.nav-item{padding:12px 20px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:.15s;margin:2px 8px;border-radius:var(--r)}
+.nav-item:hover{background:rgba(255,255,255,.1)}
+.nav-item.active{background:#3b82f6;color:white}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:var(--surface);padding:12px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.content{padding:20px;overflow-y:auto;flex:1}
+.card{background:var(--surface);border-radius:var(--rl);padding:16px;margin-bottom:16px;border:1px solid var(--border)}
+.card-title{font-weight:600;margin-bottom:12px;font-size:15px}
+.metric{background:var(--surface2);border-radius:var(--r);padding:12px;border:1px solid var(--border)}
+.metric-label{font-size:11px;text-transform:uppercase;color:var(--muted)}
+.metric-val{font-size:24px;font-weight:700}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.btn{padding:8px 16px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:13px;transition:.1s;color:var(--text)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:white}
+.btn-success{background:var(--success);border-color:var(--success);color:white}
+.btn-danger{background:var(--danger);border-color:var(--danger);color:white}
+.btn-warning{background:var(--accent3);border-color:var(--accent3);color:white}
+.btn-sm{padding:4px 10px;font-size:12px}
+.inp{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text)}
+.inp:focus{outline:none;border-color:var(--accent)}
+.lbl{font-size:11px;font-weight:600;margin-bottom:4px;display:block;color:var(--muted)}
+.pos-container{display:grid;grid-template-columns:1fr 420px;gap:16px}
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.prod-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;cursor:pointer;text-align:center;transition:.1s}
+.prod-card:hover{border-color:var(--accent);transform:scale(.98)}
+.prod-card .name{font-weight:600;font-size:13px}
+.prod-card .price{color:var(--accent);font-weight:700;margin-top:4px}
+.prod-card .stock{font-size:10px;color:var(--muted)}
+.ticket-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.qty-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text)}
+.calculadora{background:var(--surface2);border-radius:var(--r);padding:12px;margin:10px 0}
+.calc-display{font-size:28px;font-weight:700;text-align:right;padding:8px;background:var(--surface);border-radius:var(--r);margin-bottom:10px;font-family:monospace}
+.calc-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.calc-btn{padding:12px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:16px;text-align:center;color:var(--text)}
+.calc-btn.enter{background:var(--success);color:white;border-color:var(--success)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:1000}
+.modal{background:var(--surface);border-radius:var(--rl);padding:24px;width:500px;max-width:90vw;max-height:85vh;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:10px 8px;text-align:left;border-bottom:1px solid var(--border)}
+th{color:var(--muted);font-weight:600;font-size:11px}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-success{background:#dcfce7;color:#166534}
+.badge-warning{background:#fef3c7;color:#92400e}
+.badge-danger{background:#fee2e2;color:#991b1b}
+.badge-info{background:#dbeafe;color:#1e40af}
+.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:var(--r);color:white;font-size:14px;z-index:9999;animation:slideIn .3s ease}
+.toast-success{background:#22c55e}
+.toast-error{background:#ef4444}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@media print{body *{visibility:hidden}#print-area,#print-area *{visibility:visible}#print-area{position:fixed;top:0;left:0;width:80mm;background:white;color:black;padding:8px;font-family:'Courier New',monospace}}
+</style>
+</head>
+<body class="light-theme" id="app-body">
+
+<div id="print-area" style="display:none"></div>
+<div id="toast-container"></div>
+
+<!-- Login -->
+<div id="login-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)">
+  <div style="background:white;border-radius:20px;padding:32px;width:400px;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:48px">🏪</div>
+      <h1>KioscoManager</h1>
+      <p style="color:#64748b">Sistema multi-local</p>
+    </div>
+    <div>
+      <div class="lbl">Usuario / Email</div>
+      <input class="inp" id="login-email" type="text" placeholder="ej: dueno@kiosco.com" style="margin-bottom:12px">
+      <div class="lbl">PIN</div>
+      <input class="inp" id="login-pin" type="password" placeholder="PIN de acceso" style="margin-bottom:16px" onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="btn btn-primary" style="width:100%" onclick="doLogin()" id="btn-login">Ingresar</button>
+      <div id="login-error" style="color:#ef4444;text-align:center;margin-top:12px;font-size:13px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- App principal -->
+<div id="app-screen" style="display:none">
+  <div class="app">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2>🏪 Kiosco<span style="color:#fbbf24">Manager</span></h2>
+        <div style="font-size:12px;margin-top:8px" id="local-name-badge"></div>
+      </div>
+      <div style="flex:1;padding:12px 0">
+        <div class="nav-item active" data-page="pos" onclick="navigate('pos')"><span>💰</span> POS / Venta</div>
+        <div class="nav-item" data-page="ventas" onclick="navigate('ventas')"><span>📋</span> Historial</div>
+        <div class="nav-item" data-page="productos" onclick="navigate('productos')"><span>📦</span> Productos</div>
+        <div class="nav-item" data-page="stock" onclick="navigate('stock')"><span>📊</span> Stock</div>
+        <div class="nav-item" data-page="proveedores" onclick="navigate('proveedores')"><span>🚚</span> Proveedores</div>
+        <div class="nav-item" data-page="usuarios" onclick="navigate('usuarios')"><span>👥</span> Usuarios</div>
+        <div class="nav-item" data-page="config" onclick="navigate('config')"><span>⚙️</span> Configuración</div>
+        <div id="superadmin-panel" style="display:none">
+          <div style="height:1px;background:rgba(255,255,255,.1);margin:12px 16px"></div>
+          <div class="nav-item" data-page="locales" onclick="navigate('locales')"><span>🏢</span> Todos los Locales</div>
+          <div class="nav-item" data-page="soporte" onclick="navigate('soporte')"><span>🛠️</span> Soporte</div>
+        </div>
+      </div>
+      <div style="padding:16px;border-top:1px solid rgba(255,255,255,.1)">
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+          <span style="font-size:12px" id="user-name">Usuario</span>
+          <button class="btn btn-sm" onclick="toggleTheme()">🌓</button>
+        </div>
+        <button class="btn btn-sm" style="width:100%" onclick="logout()">🚪 Salir</button>
+      </div>
+    </div>
+    <div class="main">
+      <div class="topbar">
+        <h3 id="page-title">POS / Caja</h3>
+        <div id="topbar-actions"></div>
+      </div>
+      <div class="content" id="main-content"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-root"></div>
+
+<script>
+// ==================== API CONFIG ====================
+const API = '';
+let currentUser = null;
+let currentLocal = null;
+let currentTicket = [];
+let selectedPayment = 'efectivo';
+let selectedCuotas = 1;
+let descuentoActivo = false;
+let descuentoValor = 0;
+let productosCache = [];
+
+function getToken() { return localStorage.getItem('km_token'); }
+function getHeaders() {
+  return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() };
+}
+
+// ==================== TOAST (reemplaza alert) ====================
+function toast(msg, tipo = 'success') {
+  const t = document.createElement('div');
+  t.className = `toast toast-${tipo}`;
+  t.innerText = msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function confirmarAccion(msg) {
+  return new Promise(resolve => {
+    document.getElementById('modal-root').innerHTML = `
+      <div class="modal-overlay">
+        <div class="modal" style="max-width:360px;text-align:center">
+          <p style="margin-bottom:20px;font-size:15px">${msg}</p>
+          <div style="display:flex;gap:8px;justify-content:center">
+            <button class="btn" onclick="document.getElementById('modal-root').innerHTML='';resolveConfirm(false)">Cancelar</button>
+            <button class="btn btn-primary" onclick="document.getElementById('modal-root').innerHTML='';resolveConfirm(true)">Confirmar</button>
+          </div>
+        </div>
+      </div>`;
+    window.resolveConfirm = resolve;
+  });
+}
+
+// ==================== LOGIN ====================
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pin = document.getElementById('login-pin').value;
+  const btnLogin = document.getElementById('btn-login');
+  const errorDiv = document.getElementById('login-error');
+
+  if (!email || !pin) { errorDiv.innerText = 'Completá email y PIN'; return; }
+
+  btnLogin.innerText = 'Ingresando...';
+  btnLogin.disabled = true;
+  errorDiv.innerText = '';
+
+  try {
+    const res = await fetch(`${API}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, pin })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      errorDiv.innerText = data.error || 'Credenciales incorrectas';
+      btnLogin.innerText = 'Ingresar';
+      btnLogin.disabled = false;
+      return;
+    }
+
+    localStorage.setItem('km_token', data.token);
+    currentUser = data.usuario;
+    currentLocal = data.usuario.local_id ? { 
+      id: data.usuario.local_id, 
+      nombre: data.usuario.local_nombre,
+      config: { intereses: { 1: 0, 3: 5, 6: 10 }, descuentos: { activado: false, tipo: 'porcentaje', valor: 0 }, mensajeTicket: '¡Gracias por su compra!' }
+    } : null;
+
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'flex';
+    document.getElementById('user-name').innerHTML = `${currentUser.rol === 'superadmin' ? '👑' : currentUser.rol === 'admin_local' ? '👔' : '🧾'} ${currentUser.nombre}`;
+    document.getElementById('local-name-badge').innerHTML = currentUser.local_nombre ? `🏪 ${currentUser.local_nombre}` : '🌐 SuperAdmin';
+
+    if (currentUser.rol === 'superadmin') {
+      document.getElementById('superadmin-panel').style.display = 'block';
+      navigate('locales');
+    } else {
+      document.getElementById('superadmin-panel').style.display = 'none';
+      await cargarProductos();
+      navigate('pos');
+    }
+
+  } catch (err) {
+    errorDiv.innerText = 'Error de conexión con el servidor';
+    btnLogin.innerText = 'Ingresar';
+    btnLogin.disabled = false;
+  }
+}
+
+function logout() {
+  localStorage.removeItem('km_token');
+  currentUser = null;
+  currentLocal = null;
+  currentTicket = [];
+  productosCache = [];
+  descuentoActivo = false;
+  descuentoValor = 0;
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-pin').value = '';
+}
+
+function hasPermission(action) {
+  if (!currentUser) return false;
+  if (currentUser.rol === 'superadmin') return true;
+  if (currentUser.rol === 'admin_local') return true;
+  return ['pos', 'ventas'].includes(action);
+}
+
+function navigate(page) {
+  if (!hasPermission(page) && page !== 'locales' && page !== 'soporte') {
+    toast('No tenés permiso para acceder a esta sección', 'error'); return;
+  }
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const activeEl = document.querySelector(`[data-page="${page}"]`);
+  if (activeEl) activeEl.classList.add('active');
+  const titles = { pos:'💰 POS / Caja', ventas:'📋 Historial de ventas', productos:'📦 Productos', stock:'📊 Control de Stock', proveedores:'🚚 Proveedores', usuarios:'👥 Usuarios', config:'⚙️ Configuración', locales:'🏢 Todos los Locales', soporte:'🛠️ Soporte Técnico' };
+  document.getElementById('page-title').innerText = titles[page] || page;
+  document.getElementById('topbar-actions').innerHTML = '';
+  if (page === 'pos') renderPOS();
+  else if (page === 'ventas') renderVentas();
+  else if (page === 'productos') renderProductos();
+  else if (page === 'stock') renderStock();
+  else if (page === 'proveedores') renderProveedores();
+  else if (page === 'usuarios') renderUsuarios();
+  else if (page === 'config') renderConfig();
+  else if (page === 'locales') renderLocales();
+  else if (page === 'soporte') renderSoporte();
+}
+
+// ==================== API CALLS ====================
+async function cargarProductos() {
+  try {
+    const res = await fetch(`${API}/api/productos`, { headers: getHeaders() });
+    productosCache = await res.json();
+    if (currentLocal) currentLocal.productos = productosCache;
+  } catch(e) { toast('Error cargando productos', 'error'); }
+}
+
+async function cargarVentas() {
+  try {
+    const res = await fetch(`${API}/api/ventas`, { headers: getHeaders() });
+    return await res.json();
+  } catch(e) { toast('Error cargando ventas', 'error'); return []; }
+}
+
+// ==================== DESCUENTOS ====================
+function calcularDescuento(subtotal) {
+  if (!descuentoActivo) return 0;
+  const cfg = currentLocal?.config?.descuentos;
+  if (!cfg || !cfg.activado) return 0;
+  return cfg.tipo === 'porcentaje' ? subtotal * (cfg.valor / 100) : Math.min(cfg.valor, subtotal);
+}
+
+function getTotalConDescuento() {
+  const subtotal = currentTicket.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  return subtotal - calcularDescuento(subtotal);
+}
+
+function aplicarDescuentoManual() {
+  const subtotal = currentTicket.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  if (subtotal === 0) { toast('Agregá productos primero', 'error'); return; }
+  const cfg = currentLocal?.config?.descuentos;
+  if (!cfg || !cfg.activado) { toast('Los descuentos no están activados', 'error'); return; }
+  const valor = parseFloat(prompt(`Aplicar descuento (${cfg.tipo === 'porcentaje' ? '%' : '$'}):`));
+  if (isNaN(valor) || valor < 0) return;
+  descuentoValor = valor;
+  descuentoActivo = valor > 0;
+  renderTicket();
+}
+
+function toggleDescuento() {
+  if (!descuentoActivo) aplicarDescuentoManual();
+  else { descuentoActivo = false; descuentoValor = 0; renderTicket(); }
+}
+
+// ==================== POS ====================
+function renderPOS() {
+  if (!currentLocal) { document.getElementById('main-content').innerHTML = '<div class="card">⚠️ No hay local seleccionado</div>'; return; }
+  const prods = productosCache || [];
+  const cfgDesc = currentLocal?.config?.descuentos;
+  document.getElementById('topbar-actions').innerHTML = `<input class="inp" id="buscar-pos" placeholder="🔍 Buscar producto..." style="width:200px" oninput="filterProducts(this.value)">`;
+  document.getElementById('main-content').innerHTML = `
+    <div class="pos-container">
+      <div>
+        <div class="product-grid" id="product-grid-pos"></div>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column">
+        <div style="font-weight:600;margin-bottom:12px">🧾 Ticket de compra</div>
+        <div id="ticket-items" style="min-height:200px;max-height:400px;overflow:auto"></div>
+        <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px">
+          ${cfgDesc && cfgDesc.activado ? `
+          <div style="margin-bottom:12px">
+            <button class="btn ${descuentoActivo ? 'btn-warning' : 'btn-sm'}" onclick="toggleDescuento()" style="width:100%">
+              ${descuentoActivo ? `🔖 Descuento: ${cfgDesc.tipo === 'porcentaje' ? descuentoValor+'%' : '$'+descuentoValor} - Quitar` : '🎯 Aplicar descuento'}
+            </button>
+          </div>` : ''}
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:4px">
+            <span>💰 Pago:</span>
+            <div style="display:flex;gap:4px;flex-wrap:wrap">
+              <button class="btn btn-sm ${selectedPayment==='efectivo'?'btn-primary':''}" onclick="setPayment('efectivo')">💵 Efectivo</button>
+              <button class="btn btn-sm ${selectedPayment==='transferencia'?'btn-primary':''}" onclick="setPayment('transferencia')">📱 Transf.</button>
+              <button class="btn btn-sm ${selectedPayment==='debito'?'btn-primary':''}" onclick="setPayment('debito')">💳 Débito</button>
+              <button class="btn btn-sm ${selectedPayment==='credito'?'btn-primary':''}" onclick="setPayment('credito')">💳 Crédito</button>
+            </div>
+          </div>
+          <div id="cuotas-selector" style="display:${selectedPayment==='credito'?'block':'none'};margin-bottom:12px">
+            <select id="cuotas" class="inp" style="width:100%" onchange="setCuotas(this.value)">
+              <option value="1">1 cuota (sin interés)</option>
+              <option value="3">3 cuotas (+${currentLocal?.config?.intereses?.[3] || 5}%)</option>
+              <option value="6">6 cuotas (+${currentLocal?.config?.intereses?.[6] || 10}%)</option>
+            </select>
+          </div>
+          <div id="calculadora-efectivo" style="display:${selectedPayment==='efectivo'?'block':'none'}">
+            <div class="calculadora">
+              <div class="calc-display" id="calc-display">0</div>
+              <div class="calc-buttons">
+                <div class="calc-btn" onclick="calcAdd('1')">1</div><div class="calc-btn" onclick="calcAdd('2')">2</div><div class="calc-btn" onclick="calcAdd('3')">3</div><div class="calc-btn" onclick="calcClear()">C</div>
+                <div class="calc-btn" onclick="calcAdd('4')">4</div><div class="calc-btn" onclick="calcAdd('5')">5</div><div class="calc-btn" onclick="calcAdd('6')">6</div><div class="calc-btn" onclick="calcBack()">⌫</div>
+                <div class="calc-btn" onclick="calcAdd('7')">7</div><div class="calc-btn" onclick="calcAdd('8')">8</div><div class="calc-btn" onclick="calcAdd('9')">9</div><div class="calc-btn enter" onclick="calcularVuelto()">💰 Calcular</div>
+                <div class="calc-btn" onclick="calcAdd('00')">00</div><div class="calc-btn" onclick="calcAdd('0')">0</div>
+              </div>
+            </div>
+            <div id="vuelto-display" style="background:var(--success);color:white;padding:12px;border-radius:var(--r);margin-top:8px;text-align:center;font-weight:700;display:none"></div>
+          </div>
+          <div style="margin-top:12px">
+            <div id="resumen-total" style="margin-bottom:8px"></div>
+            <button class="btn btn-success" style="width:100%;margin-top:12px" onclick="confirmarPago()">✅ Cobrar</button>
+            <button class="btn" style="width:100%;margin-top:8px" onclick="limpiarTicket()">🗑️ Limpiar ticket</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  renderProductGrid(prods);
+  renderTicket();
+}
+
+let calcValue = '0';
+function calcAdd(num) { calcValue = calcValue === '0' ? num : calcValue + num; document.getElementById('calc-display').innerText = calcValue; }
+function calcClear() { calcValue = '0'; document.getElementById('calc-display').innerText = '0'; document.getElementById('vuelto-display').style.display = 'none'; }
+function calcBack() { calcValue = calcValue.slice(0,-1) || '0'; document.getElementById('calc-display').innerText = calcValue; }
+function calcularVuelto() {
+  const total = getTotalConDescuento();
+  const pago = parseInt(calcValue);
+  if (isNaN(pago) || pago < total) { toast(`Monto insuficiente. Total: $${total.toLocaleString('es-AR')}`, 'error'); return; }
+  const vuelto = pago - total;
+  document.getElementById('vuelto-display').innerHTML = `💰 Vuelto: $${vuelto.toLocaleString('es-AR')}`;
+  document.getElementById('vuelto-display').style.display = 'block';
+}
+
+function setPayment(method) { selectedPayment = method; renderPOS(); }
+function setCuotas(cuotas) { selectedCuotas = parseInt(cuotas); }
+
+function filterProducts(q) {
+  const prods = productosCache.filter(p => p.nombre.toLowerCase().includes(q.toLowerCase()));
+  renderProductGrid(prods);
+}
+
+function renderProductGrid(prods) {
+  const grid = document.getElementById('product-grid-pos');
+  if (!grid) return;
+  if (prods.length === 0) { grid.innerHTML = '<div style="color:var(--muted);grid-column:1/-1;text-align:center;padding:20px">No hay productos</div>'; return; }
+  grid.innerHTML = prods.map(p => `
+    <div class="prod-card" onclick="addToTicket(${p.id})">
+      <div class="name">${p.nombre}</div>
+      <div class="price">$${parseFloat(p.precio).toLocaleString('es-AR')}</div>
+      <div class="stock">Stock: ${p.stock}</div>
+    </div>`).join('');
+}
+
+function addToTicket(id) {
+  const prod = productosCache.find(p => p.id === id);
+  if (!prod) return;
+  if (prod.stock <= 0) { toast('Sin stock disponible', 'error'); return; }
+  const existing = currentTicket.find(i => i.id === id);
+  if (existing) existing.cantidad++;
+  else currentTicket.push({ ...prod, precio: parseFloat(prod.precio), cantidad: 1 });
+  renderTicket();
+}
+
+function renderTicket() {
+  const container = document.getElementById('ticket-items');
+  if (!container) return;
+  const subtotal = currentTicket.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  const descuento = calcularDescuento(subtotal);
+  const total = subtotal - descuento;
+  const resumenDiv = document.getElementById('resumen-total');
+  if (resumenDiv) {
+    resumenDiv.innerHTML = `
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span>Subtotal:</span><span>$${subtotal.toLocaleString('es-AR')}</span></div>
+      ${descuento > 0 ? `<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--accent3)"><span>🎯 Descuento:</span><span>-$${descuento.toLocaleString('es-AR')}</span></div>` : ''}
+      <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:700;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><span>TOTAL:</span><span>$${total.toLocaleString('es-AR')}</span></div>`;
+  }
+  if (currentTicket.length === 0) { container.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px">Agregá productos al ticket</div>'; return; }
+  container.innerHTML = currentTicket.map((item, idx) => `
+    <div class="ticket-item">
+      <span style="flex:1">${item.nombre}</span>
+      <button class="qty-btn" onclick="changeQty(${idx},-1)">-</button>
+      <span style="min-width:30px;text-align:center">${item.cantidad}</span>
+      <button class="qty-btn" onclick="changeQty(${idx},1)">+</button>
+      <span style="min-width:70px;text-align:right">$${(item.precio*item.cantidad).toLocaleString('es-AR')}</span>
+    </div>`).join('');
+}
+
+function changeQty(idx, delta) {
+  currentTicket[idx].cantidad += delta;
+  if (currentTicket[idx].cantidad <= 0) currentTicket.splice(idx, 1);
+  renderTicket();
+}
+
+async function limpiarTicket() {
+  const ok = await confirmarAccion('¿Limpiar todo el ticket?');
+  if (!ok) return;
+  currentTicket = []; descuentoActivo = false; descuentoValor = 0;
+  renderTicket(); calcClear(); renderPOS();
+}
+
+async function confirmarPago() {
+  if (currentTicket.length === 0) { toast('Agregá productos al ticket', 'error'); return; }
+  let subtotal = currentTicket.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  let descuento = calcularDescuento(subtotal);
+  let total = subtotal - descuento;
+  let metodo = selectedPayment;
+
+  if (selectedPayment === 'credito') {
+    const interes = currentLocal?.config?.intereses?.[selectedCuotas] || 0;
+    total = total * (1 + interes / 100);
+    metodo = `credito_${selectedCuotas}cuotas`;
+  }
+
+  if (selectedPayment === 'efectivo') {
+    const pago = parseInt(calcValue);
+    if (isNaN(pago) || pago < total) { toast(`Monto insuficiente. Total: $${Math.round(total).toLocaleString('es-AR')}`, 'error'); return; }
+  }
+
+  try {
+    const res = await fetch(`${API}/api/ventas`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        items: currentTicket.map(i => ({ id: i.id, nombre: i.nombre, precio: i.precio, cantidad: i.cantidad })),
+        subtotal, descuento, total: Math.round(total), metodo_pago: metodo, cuotas: selectedCuotas
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Error al registrar venta', 'error'); return; }
+
+    // Actualizar stock local
+    for (let item of currentTicket) {
+      const prod = productosCache.find(p => p.id === item.id);
+      if (prod) prod.stock -= item.cantidad;
+    }
+
+    if (selectedPayment === 'efectivo') {
+      const pago = parseInt(calcValue);
+      const vuelto = pago - Math.round(total);
+      if (vuelto > 0) toast(`💵 Vuelto: $${vuelto.toLocaleString('es-AR')}`, 'success');
+    }
+
+    toast('✅ Venta registrada correctamente', 'success');
+    imprimirTicket(data.venta);
+
+    currentTicket = []; descuentoActivo = false; descuentoValor = 0; calcValue = '0';
+    renderPOS();
+
+  } catch(err) {
+    toast('Error de conexión', 'error');
+  }
+}
+
+function imprimirTicket(venta) {
+  const local = currentLocal;
+  let html = `<div style="text-align:center;font-weight:bold">${local?.nombre || 'KioscoManager'}</div>`;
+  html += `<div style="text-align:center;font-size:11px">${new Date().toLocaleString('es-AR')}</div>`;
+  html += `<div style="border-top:1px dashed #000;margin:8px 0"></div>`;
+  (venta.items || currentTicket).forEach(i => {
+    html += `<div style="display:flex;justify-content:space-between"><span>${i.nombre||i.nombre_producto} x${i.cantidad}</span><span>$${(parseFloat(i.precio||i.precio_unitario)*i.cantidad).toLocaleString('es-AR')}</span></div>`;
+  });
+  if (parseFloat(venta.descuento) > 0) html += `<div style="display:flex;justify-content:space-between;color:#b45309"><span>🎯 Descuento</span><span>-$${parseFloat(venta.descuento).toLocaleString('es-AR')}</span></div>`;
+  html += `<div style="border-top:1px dashed #000;margin:8px 0"></div>`;
+  html += `<div style="display:flex;justify-content:space-between;font-weight:bold"><span>TOTAL</span><span>$${parseFloat(venta.total).toLocaleString('es-AR')}</span></div>`;
+  html += `<div style="font-size:11px">${venta.metodo_pago}</div>`;
+  html += `<div style="border-top:1px dashed #000;margin:8px 0"></div>`;
+  html += `<div style="text-align:center;font-size:11px">${local?.config?.mensajeTicket || '¡Gracias por su compra!'}</div>`;
+  const win = window.open('','_blank','width=400,height=500');
+  if (win) {
+    win.document.write(`<html><head><title>Ticket</title><style>body{font-family:'Courier New',monospace;padding:10px;width:80mm;font-size:13px}</style></head><body>${html}<script>window.onload=function(){window.print();setTimeout(()=>window.close(),500)}<\/script></body></html>`);
+    win.document.close();
+  }
+}
+
+// ==================== VENTAS ====================
+async function renderVentas() {
+  document.getElementById('main-content').innerHTML = '<div class="card">Cargando ventas...</div>';
+  const ventas = await cargarVentas();
+  const total = ventas.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+  document.getElementById('main-content').innerHTML = `
+    <div class="grid-3" style="margin-bottom:16px">
+      <div class="metric"><div class="metric-label">Total ventas</div><div class="metric-val">${ventas.length}</div></div>
+      <div class="metric"><div class="metric-label">Facturado hoy</div><div class="metric-val">$${ventas.filter(v=>v.created_at?.startsWith(new Date().toISOString().split('T')[0])).reduce((s,v)=>s+parseFloat(v.total||0),0).toLocaleString('es-AR')}</div></div>
+      <div class="metric"><div class="metric-label">Total facturado</div><div class="metric-val">$${total.toLocaleString('es-AR')}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 Historial de ventas</div>
+      ${ventas.length === 0 ? '<p style="color:var(--muted)">No hay ventas registradas</p>' : `
+      <table>
+        <thead><tr><th>Fecha</th><th>Cajero</th><th>Productos</th><th>Desc.</th><th>Total</th><th>Método</th></tr></thead>
+        <tbody>
+          ${ventas.map(v => `
+            <tr>
+              <td>${new Date(v.created_at).toLocaleString('es-AR')}</td>
+              <td>${v.cajero || '-'}</td>
+              <td style="font-size:11px">${(v.items||[]).map(i=>`${i.nombre} x${i.cantidad}`).join(', ')}</td>
+              <td>${parseFloat(v.descuento||0)>0?'-$'+parseFloat(v.descuento).toLocaleString('es-AR'):'-'}</td>
+              <td><strong>$${parseFloat(v.total).toLocaleString('es-AR')}</strong></td>
+              <td>${v.metodo_pago}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`}
+    </div>`;
+}
+
+// ==================== PRODUCTOS ====================
+async function renderProductos() {
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="modalProducto()">+ Nuevo producto</button>`;
+  await cargarProductos();
+  const prods = productosCache;
+  document.getElementById('main-content').innerHTML = `
+    <div class="card">
+      <div class="card-title">📦 Productos</div>
+      <table>
+        <thead><tr><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Mín.</th><th></th></tr></thead>
+        <tbody>
+          ${prods.map(p => `
+            <tr>
+              <td>${p.nombre}</td><td>${p.categoria||'-'}</td>
+              <td>$${parseFloat(p.precio).toLocaleString('es-AR')}</td>
+              <td>$${parseFloat(p.costo||0).toLocaleString('es-AR')}</td>
+              <td class="${p.stock<=p.stock_min?'badge-danger':''}">${p.stock}</td>
+              <td>${p.stock_min}</td>
+              <td><button class="btn btn-sm" onclick="modalProducto(${p.id})">✏️</button></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function modalProducto(id = null) {
+  const prod = id ? productosCache.find(p => p.id === id) : null;
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)cerrarModal()">
+      <div class="modal">
+        <h3 style="margin-bottom:16px">${id ? 'Editar' : 'Nuevo'} producto</h3>
+        <div class="lbl">Nombre</div><input class="inp" id="prod-nombre" value="${prod?.nombre||''}" style="margin-bottom:12px">
+        <div class="lbl">Categoría</div><input class="inp" id="prod-cat" value="${prod?.categoria||''}" style="margin-bottom:12px">
+        <div class="grid-2" style="margin-bottom:12px">
+          <div><div class="lbl">Precio</div><input class="inp" type="number" id="prod-precio" value="${prod?.precio||0}"></div>
+          <div><div class="lbl">Costo</div><input class="inp" type="number" id="prod-costo" value="${prod?.costo||0}"></div>
+        </div>
+        <div class="grid-2" style="margin-bottom:16px">
+          <div><div class="lbl">Stock</div><input class="inp" type="number" id="prod-stock" value="${prod?.stock||0}"></div>
+          <div><div class="lbl">Stock mínimo</div><input class="inp" type="number" id="prod-min" value="${prod?.stock_min||5}"></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="cerrarModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="guardarProducto(${id||'null'})">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function guardarProducto(id) {
+  const nombre = document.getElementById('prod-nombre').value;
+  if (!nombre) { toast('El nombre es obligatorio', 'error'); return; }
+  const body = {
+    nombre,
+    categoria: document.getElementById('prod-cat').value || 'General',
+    precio: parseFloat(document.getElementById('prod-precio').value),
+    costo: parseFloat(document.getElementById('prod-costo').value),
+    stock: parseInt(document.getElementById('prod-stock').value),
+    stock_min: parseInt(document.getElementById('prod-min').value)
+  };
+  try {
+    const url = id ? `${API}/api/productos/${id}` : `${API}/api/productos`;
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: getHeaders(), body: JSON.stringify(body) });
+    if (!res.ok) { toast('Error al guardar producto', 'error'); return; }
+    toast('✅ Producto guardado', 'success');
+    cerrarModal();
+    renderProductos();
+  } catch(e) { toast('Error de conexión', 'error'); }
+}
+
+// ==================== STOCK ====================
+async function renderStock() {
+  await cargarProductos();
+  const prods = productosCache;
+  const bajos = prods.filter(p => p.stock <= p.stock_min);
+  document.getElementById('main-content').innerHTML = `
+    <div class="grid-3" style="margin-bottom:16px">
+      <div class="metric"><div class="metric-label">Stock bajo</div><div class="metric-val" style="color:var(--danger)">${bajos.length}</div></div>
+      <div class="metric"><div class="metric-label">Productos totales</div><div class="metric-val">${prods.length}</div></div>
+      <div class="metric"><div class="metric-label">Valor en stock</div><div class="metric-val">$${prods.reduce((s,p)=>s+parseFloat(p.precio)*p.stock,0).toLocaleString('es-AR')}</div></div>
+    </div>
+    ${bajos.length ? `<div class="card" style="background:var(--accent3);color:white;margin-bottom:16px">⚠️ Stock bajo: ${bajos.map(p=>p.nombre).join(', ')}</div>` : ''}
+    <div class="card">
+      <table>
+        <thead><tr><th>Producto</th><th>Stock actual</th><th>Mínimo</th><th>Estado</th></tr></thead>
+        <tbody>
+          ${prods.map(p => `
+            <tr>
+              <td>${p.nombre}</td>
+              <td><strong class="${p.stock<=p.stock_min?'badge-danger':''}">${p.stock}</strong></td>
+              <td>${p.stock_min}</td>
+              <td>${p.stock<=p.stock_min?'⚠️ Reponer':'✅ OK'}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+// ==================== PROVEEDORES ====================
+function renderProveedores() {
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="modalProveedor()">+ Nuevo proveedor</button>`;
+  const provs = currentLocal?.proveedores || [];
+  document.getElementById('main-content').innerHTML = `
+    <div class="card">
+      <div class="card-title">🚚 Proveedores</div>
+      ${provs.length === 0 ? '<p style="color:var(--muted)">No hay proveedores registrados</p>' : `
+      <table>
+        <thead><tr><th>Nombre</th><th>Contacto</th><th>Teléfono</th></tr></thead>
+        <tbody>${provs.map(p=>`<tr><td>${p.nombre}</td><td>${p.contacto||'-'}</td><td>${p.telefono||'-'}</td></tr>`).join('')}</tbody>
+      </table>`}
+    </div>`;
+}
+
+function modalProveedor(id = null) {
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)cerrarModal()">
+      <div class="modal">
+        <h3 style="margin-bottom:16px">Nuevo proveedor</h3>
+        <div class="lbl">Nombre</div><input class="inp" id="prov-nombre" style="margin-bottom:12px">
+        <div class="lbl">Contacto</div><input class="inp" id="prov-contacto" style="margin-bottom:12px">
+        <div class="lbl">Teléfono</div><input class="inp" id="prov-telefono" style="margin-bottom:16px">
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="cerrarModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="guardarProveedor()">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function guardarProveedor() {
+  const nombre = document.getElementById('prov-nombre').value;
+  if (!nombre) { toast('El nombre es obligatorio', 'error'); return; }
+  if (!currentLocal.proveedores) currentLocal.proveedores = [];
+  currentLocal.proveedores.push({ id: Date.now(), nombre, contacto: document.getElementById('prov-contacto').value, telefono: document.getElementById('prov-telefono').value });
+  toast('✅ Proveedor guardado', 'success');
+  cerrarModal();
+  renderProveedores();
+}
+
+// ==================== USUARIOS ====================
+function renderUsuarios() {
+  if (currentUser?.rol !== 'admin_local') {
+    document.getElementById('main-content').innerHTML = '<div class="card">⚠️ Solo el dueño puede gestionar usuarios</div>'; return;
+  }
+  document.getElementById('main-content').innerHTML = `
+    <div class="card">
+      <div class="card-title">👥 Usuarios</div>
+      <p style="color:var(--muted)">La gestión de usuarios se realiza desde el panel de administración.</p>
+    </div>`;
+}
+
+// ==================== CONFIG ====================
+function renderConfig() {
+  if (currentUser?.rol !== 'admin_local') {
+    document.getElementById('main-content').innerHTML = '<div class="card">⚠️ Solo el dueño puede acceder a configuración</div>'; return;
+  }
+  const cfg = currentLocal?.config || {};
+  document.getElementById('main-content').innerHTML = `
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">🎯 Descuentos</div>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <input type="checkbox" id="desc-activo" ${cfg.descuentos?.activado?'checked':''}> Activar descuentos
+        </label>
+        <select id="desc-tipo" class="inp" style="margin-bottom:12px">
+          <option value="porcentaje" ${cfg.descuentos?.tipo==='porcentaje'?'selected':''}>Porcentaje (%)</option>
+          <option value="fijo" ${cfg.descuentos?.tipo==='fijo'?'selected':''}>Monto fijo ($)</option>
+        </select>
+        <div class="lbl">Valor</div><input class="inp" type="number" id="desc-valor" value="${cfg.descuentos?.valor||0}" style="margin-bottom:12px">
+        <button class="btn btn-primary" onclick="guardarConfigDescuentos()">Guardar descuentos</button>
+      </div>
+      <div class="card">
+        <div class="card-title">💳 Intereses por cuotas</div>
+        <div class="grid-2" style="margin-bottom:12px">
+          <div><div class="lbl">3 cuotas (%)</div><input class="inp" type="number" id="int-3" value="${cfg.intereses?.[3]||0}"></div>
+          <div><div class="lbl">6 cuotas (%)</div><input class="inp" type="number" id="int-6" value="${cfg.intereses?.[6]||0}"></div>
+        </div>
+        <button class="btn btn-primary" onclick="guardarConfigIntereses()">Guardar intereses</button>
+      </div>
+      <div class="card">
+        <div class="card-title">🧾 Mensaje en ticket</div>
+        <textarea class="inp" id="cfg-mensaje" rows="3" style="margin-bottom:12px">${cfg.mensajeTicket||''}</textarea>
+        <button class="btn btn-primary" onclick="guardarMensajeTicket()">Guardar mensaje</button>
+      </div>
+    </div>`;
+}
+
+function guardarConfigDescuentos() {
+  if (!currentLocal.config.descuentos) currentLocal.config.descuentos = {};
+  currentLocal.config.descuentos.activado = document.getElementById('desc-activo').checked;
+  currentLocal.config.descuentos.tipo = document.getElementById('desc-tipo').value;
+  currentLocal.config.descuentos.valor = parseFloat(document.getElementById('desc-valor').value) || 0;
+  toast('✅ Descuentos guardados', 'success');
+}
+
+function guardarConfigIntereses() {
+  if (!currentLocal.config.intereses) currentLocal.config.intereses = {};
+  currentLocal.config.intereses[3] = parseFloat(document.getElementById('int-3').value) || 0;
+  currentLocal.config.intereses[6] = parseFloat(document.getElementById('int-6').value) || 0;
+  toast('✅ Intereses guardados', 'success');
+}
+
+function guardarMensajeTicket() {
+  currentLocal.config.mensajeTicket = document.getElementById('cfg-mensaje').value;
+  toast('✅ Mensaje guardado', 'success');
+}
+
+// ==================== SUPERADMIN ====================
+async function renderLocales() {
+  if (currentUser?.rol !== 'superadmin') return;
+  document.getElementById('main-content').innerHTML = '<div class="card">Cargando locales...</div>';
+  try {
+    const res = await fetch(`${API}/api/locales`, { headers: getHeaders() });
+    const locales = res.ok ? await res.json() : [];
+    document.getElementById('main-content').innerHTML = `
+      <div class="card">
+        <div class="card-title">🏢 Todos los locales</div>
+        ${locales.length === 0 ? '<p style="color:var(--muted)">No hay locales registrados</p>' : `
+        <table>
+          <thead><tr><th>Local</th><th>Dirección</th><th>Plan</th><th>Estado</th><th>Vence</th></tr></thead>
+          <tbody>
+            ${locales.map(l=>`
+              <tr>
+                <td><strong>${l.nombre}</strong></td>
+                <td>${l.direccion||'-'}</td>
+                <td>${l.plan}</td>
+                <td class="${l.suscripcion_activa?'badge-success':'badge-danger'}">${l.suscripcion_activa?'Activo':'Vencido'}</td>
+                <td>${l.suscripcion_vence||'-'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`}
+      </div>`;
+  } catch(e) {
+    document.getElementById('main-content').innerHTML = '<div class="card">Error cargando locales</div>';
+  }
+}
+
+function renderSoporte() {
+  document.getElementById('main-content').innerHTML = `
+    <div class="card">
+      <div class="card-title">🛠️ Soporte Técnico</div>
+      <p>📧 Email: soporte@kioscomanager.com</p>
+      <p style="margin-top:8px">📞 Tel: 0800-123-KIOSCO</p>
+    </div>`;
+}
+
+// ==================== UTILS ====================
+function cerrarModal() { document.getElementById('modal-root').innerHTML = ''; }
+function toggleTheme() {
+  document.body.classList.toggle('dark-theme');
+  document.body.classList.toggle('light-theme');
+}
+
+// Init
+document.getElementById('login-email').value = '';
+document.getElementById('login-pin').value = '';
+</script>
+</body>
+</html>
