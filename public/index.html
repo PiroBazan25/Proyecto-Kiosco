@@ -402,7 +402,17 @@ function setPayment(method) { selectedPayment = method; renderPOS(); }
 function setCuotas(cuotas) { selectedCuotas = parseInt(cuotas); }
 
 function filterProducts(q) {
-  const prods = productosCache.filter(p => p.nombre.toLowerCase().includes(q.toLowerCase()));
+  if (!q) { renderProductGrid(productosCache); return; }
+  const prods = productosCache.filter(p => 
+    p.nombre.toLowerCase().includes(q.toLowerCase()) ||
+    (p.cod_barras && p.cod_barras.includes(q))
+  );
+  if (prods.length === 1 && q.length > 5) {
+    addToTicket(prods[0].id);
+    document.getElementById('buscar-pos').value = '';
+    renderProductGrid(productosCache);
+    return;
+  }
   renderProductGrid(prods);
 }
 
@@ -604,6 +614,7 @@ function modalProducto(id = null) {
         <h3 style="margin-bottom:16px">${id ? 'Editar' : 'Nuevo'} producto</h3>
         <div class="lbl">Nombre</div><input class="inp" id="prod-nombre" value="${prod?.nombre||''}" style="margin-bottom:12px">
         <div class="lbl">Categoría</div><input class="inp" id="prod-cat" value="${prod?.categoria||''}" style="margin-bottom:12px">
+        <div class="lbl">Código de barras</div><input class="inp" id="prod-barras" value="${prod?.cod_barras||''}" placeholder="Escaneá o escribí el código" style="margin-bottom:12px">
         <div class="grid-2" style="margin-bottom:12px">
           <div><div class="lbl">Precio</div><input class="inp" type="number" id="prod-precio" value="${prod?.precio||0}"></div>
           <div><div class="lbl">Costo</div><input class="inp" type="number" id="prod-costo" value="${prod?.costo||0}"></div>
@@ -623,14 +634,15 @@ function modalProducto(id = null) {
 async function guardarProducto(id) {
   const nombre = document.getElementById('prod-nombre').value;
   if (!nombre) { toast('El nombre es obligatorio', 'error'); return; }
-  const body = {
-    nombre,
-    categoria: document.getElementById('prod-cat').value || 'General',
-    precio: parseFloat(document.getElementById('prod-precio').value),
-    costo: parseFloat(document.getElementById('prod-costo').value),
-    stock: parseInt(document.getElementById('prod-stock').value),
-    stock_min: parseInt(document.getElementById('prod-min').value)
-  };
+ const body = {
+  nombre,
+  categoria: document.getElementById('prod-cat').value || 'General',
+  precio: parseFloat(document.getElementById('prod-precio').value),
+  costo: parseFloat(document.getElementById('prod-costo').value),
+  stock: parseInt(document.getElementById('prod-stock').value),
+  stock_min: parseInt(document.getElementById('prod-min').value),
+  cod_barras: document.getElementById('prod-barras').value || null
+};
   try {
     const url = id ? `${API}/api/productos/${id}` : `${API}/api/productos`;
     const method = id ? 'PUT' : 'POST';
@@ -908,6 +920,27 @@ function toggleTheme() {
 // Init
 document.getElementById('login-email').value = '';
 document.getElementById('login-pin').value = '';
+document.getElementById('login-email').value = '';
+document.getElementById('login-pin').value = '';
+
+// ==================== TECLADO FISICO ====================
+document.addEventListener('keydown', function(e) {
+  const posActivo = document.getElementById('product-grid-pos');
+  const calcDisplay = document.getElementById('calc-display');
+  if (!posActivo || !calcDisplay) return;
+
+  if (e.key >= '0' && e.key <= '9') {
+    calcAdd(e.key);
+  } else if (e.key === 'Backspace') {
+    calcBack();
+  } else if (e.key === 'Escape') {
+    calcClear();
+  } else if (e.key === 'Enter') {
+    calcularVuelto();
+  } else if (e.key === 'Delete') {
+    calcClear();
+  }
+});
 </script>
 </body>
 </html>
