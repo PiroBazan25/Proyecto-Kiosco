@@ -712,15 +712,95 @@ function guardarProveedor() {
 }
 
 // ==================== USUARIOS ====================
-function renderUsuarios() {
-  if (currentUser?.rol !== 'admin_local') {
-    document.getElementById('main-content').innerHTML = '<div class="card">⚠️ Solo el dueño puede gestionar usuarios</div>'; return;
+async function renderUsuarios() {
+  if (!['admin_local', 'superadmin'].includes(currentUser?.rol)) {
+    document.getElementById('main-content').innerHTML = '<div class="card">⚠️ Sin permiso</div>';
+    return;
   }
-  document.getElementById('main-content').innerHTML = `
-    <div class="card">
-      <div class="card-title">👥 Usuarios</div>
-      <p style="color:var(--muted)">La gestión de usuarios se realiza desde el panel de administración.</p>
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="modalUsuario()">+ Nuevo usuario</button>`;
+  document.getElementById('main-content').innerHTML = '<div class="card">Cargando usuarios...</div>';
+  
+  try {
+    const res = await fetch(`${API}/api/usuarios`, { headers: getHeaders() });
+    const usuarios = await res.json();
+    document.getElementById('main-content').innerHTML = `
+      <div class="card">
+        <div class="card-title">👥 Usuarios del local</div>
+        <table>
+          <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            ${usuarios.map(u => `
+              <tr>
+                <td>${u.nombre}</td>
+                <td>${u.email}</td>
+                <td>${u.rol === 'admin_local' ? '👔 Dueño' : '🧾 Cajero'}</td>
+                <td><span class="badge ${u.activo ? 'badge-success' : 'badge-danger'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
+                <td><button class="btn btn-sm" onclick="modalUsuario(${u.id}, ${JSON.stringify(u).replace(/"/g, '&quot;')})">✏️</button></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch(e) {
+    toast('Error cargando usuarios', 'error');
+  }
+}
+
+function modalUsuario(id = null, user = null) {
+  const esSuperadmin = currentUser?.rol === 'superadmin';
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)cerrarModal()">
+      <div class="modal">
+        <h3 style="margin-bottom:16px">${id ? 'Editar' : 'Nuevo'} usuario</h3>
+        <div class="lbl">Nombre</div>
+        <input class="inp" id="user-nombre" value="${user?.nombre || ''}" style="margin-bottom:12px">
+        <div class="lbl">Email</div>
+        <input class="inp" id="user-email" type="email" value="${user?.email || ''}" style="margin-bottom:12px">
+        <div class="lbl">${id ? 'PIN nuevo (dejá vacío para no cambiar)' : 'PIN'}</div>
+        <input class="inp" id="user-pin" type="password" placeholder="${id ? 'Dejar vacío para mantener' : 'Ej: 1234'}" style="margin-bottom:12px">
+        <div class="lbl">Rol</div>
+        <select class="inp" id="user-rol" style="margin-bottom:12px">
+          <option value="cajero" ${user?.rol === 'cajero' ? 'selected' : ''}>🧾 Cajero</option>
+          <option value="admin_local" ${user?.rol === 'admin_local' ? 'selected' : ''}>👔 Dueño</option>
+        </select>
+        ${id ? `
+        <div style="margin-bottom:16px">
+          <label style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="user-activo" ${user?.activo ? 'checked' : ''}> Activo
+          </label>
+        </div>` : ''}
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="cerrarModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="guardarUsuario(${id || 'null'})">Guardar</button>
+        </div>
+      </div>
     </div>`;
+}
+
+async function guardarUsuario(id) {
+  const nombre = document.getElementById('user-nombre').value;
+  const email = document.getElementById('user-email').value;
+  const pin = document.getElementById('user-pin').value;
+  const rol = document.getElementById('user-rol').value;
+  const activo = id ? document.getElementById('user-activo')?.checked : true;
+
+  if (!nombre || !email) { toast('Nombre y email son obligatorios', 'error'); return; }
+  if (!id && !pin) { toast('El PIN es obligatorio para usuarios nuevos', 'error'); return; }
+
+  const body = { nombre, email, rol, activo };
+  if (pin) body.pin = pin;
+
+  try {
+    const url = id ? `${API}/api/usuarios/${id}` : `${API}/api/usuarios`;
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: getHeaders(), body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Error al guardar', 'error'); return; }
+    toast('✅ Usuario guardado correctamente', 'success');
+    cerrarModal();
+    renderUsuarios();
+  } catch(e) {
+    toast('Error de conexión', 'error');
+  }
 }
 
 // ==================== CONFIG ====================

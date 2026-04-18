@@ -14,6 +14,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/productos', require('./routes/productos'));
 app.use('/api/ventas', require('./routes/ventas'));
 app.use('/api/locales', require('./routes/locales'));
+app.use('/api/usuarios', require('./routes/usuarios'));
 
 app.get('/api/ping', (req, res) => {
   res.json({ ok: true, mensaje: 'KioscoManager API funcionando' });
