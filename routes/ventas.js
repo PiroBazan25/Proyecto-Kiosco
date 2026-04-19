@@ -12,10 +12,16 @@ router.post('/', verificarToken, async (req, res) => {
     await client.query('BEGIN');
 
     // Crear la venta
-    const ventaResult = await client.query(
-      'INSERT INTO ventas (local_id, usuario_id, subtotal, descuento, total, metodo_pago, cuotas) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
-      [req.usuario.local_id, req.usuario.id, subtotal, descuento || 0, total, metodo_pago, cuotas || 1]
-    );
+    const turnoActivo = await client.query(
+  'SELECT id FROM turnos WHERE usuario_id = $1 AND estado = $2',
+  [req.usuario.id, 'abierto']
+);
+const turnoId = turnoActivo.rows[0]?.id || null;
+
+const ventaResult = await client.query(
+  'INSERT INTO ventas (local_id, usuario_id, subtotal, descuento, total, metodo_pago, cuotas, turno_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
+  [req.usuario.local_id, req.usuario.id, subtotal, descuento || 0, total, metodo_pago, cuotas || 1, turnoId]
+);
 
     const venta = ventaResult.rows[0];
 

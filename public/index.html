@@ -104,6 +104,7 @@ th{color:var(--muted);font-weight:600;font-size:11px}
       </div>
       <div style="flex:1;padding:12px 0">
         <div class="nav-item active" data-page="pos" onclick="navigate('pos')"><span>💰</span> POS / Venta</div>
+        <div class="nav-item" id="nav-turnos" data-page="turnos" onclick="navigate('turnos')" style="display:none"><span>🔄</span> Turnos / Caja</div>
         <div class="nav-item" data-page="ventas" onclick="navigate('ventas')"><span>📋</span> Historial</div>
         <div class="nav-item" data-page="productos" onclick="navigate('productos')"><span>📦</span> Productos</div>
         <div class="nav-item" data-page="stock" onclick="navigate('stock')"><span>📊</span> Stock</div>
@@ -117,12 +118,14 @@ th{color:var(--muted);font-weight:600;font-size:11px}
         </div>
       </div>
       <div style="padding:16px;border-top:1px solid rgba(255,255,255,.1)">
-        <div style="display:flex;justify-content:space-between;margin-bottom:12px">
-          <span style="font-size:12px" id="user-name">Usuario</span>
-          <button class="btn btn-sm" onclick="toggleTheme()">🌓</button>
-        </div>
-        <button class="btn btn-sm" style="width:100%" onclick="logout()">🚪 Salir</button>
-      </div>
+  <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+    <span style="font-size:12px" id="user-name">Usuario</span>
+    <button class="btn btn-sm" onclick="toggleTheme()">🌓</button>
+  </div>
+  <div id="turno-info" style="font-size:11px;color:#94a3b8;margin-bottom:8px"></div>
+  <button class="btn btn-sm btn-warning" id="btn-cerrar-turno" style="width:100%;margin-bottom:6px;display:none" onclick="cerrarTurno()">🔒 Cerrar turno</button>
+  <button class="btn btn-sm" style="width:100%" onclick="logout()">🚪 Salir</button>
+</div>
     </div>
     <div class="main">
       <div class="topbar">
@@ -147,6 +150,7 @@ let selectedCuotas = 1;
 let descuentoActivo = false;
 let descuentoValor = 0;
 let productosCache = [];
+let turnoActual = null;
 
 function getToken() { return localStorage.getItem('km_token'); }
 function getHeaders() {
@@ -223,10 +227,15 @@ async function doLogin() {
     if (currentUser.rol === 'superadmin') {
       document.getElementById('superadmin-panel').style.display = 'block';
       navigate('locales');
+      document.getElementById('btn-cerrar-turno').style.display = 'none';
+document.getElementById('nav-turnos').style.display = 'block';
     } else {
       document.getElementById('superadmin-panel').style.display = 'none';
       await cargarProductos();
       navigate('pos');
+      await verificarTurno();
+document.getElementById('btn-cerrar-turno').style.display = 'block';
+document.getElementById('nav-turnos').style.display = 'none';
     }
 
   } catch (err) {
@@ -276,6 +285,7 @@ function navigate(page) {
   else if (page === 'config') renderConfig();
   else if (page === 'locales') renderLocales();
   else if (page === 'soporte') renderSoporte();
+  else if (page === 'turnos') renderHistorialTurnos();
 }
 
 // ==================== API CALLS ====================
@@ -1110,6 +1120,147 @@ document.addEventListener('keydown', function(e) {
     calcClear();
   }
 });
+// ==================== TURNOS ====================
+async function verificarTurno() {
+  if (currentUser?.rol !== 'cajero') return;
+  try {
+    const res = await fetch(`${API}/api/turnos/actual`, { headers: getHeaders() });
+    turnoActual = await res.json();
+    if (!turnoActual) {
+      mostrarAperturaCaja();
+    }
+  } catch(e) { console.error(e); }
+}
+
+function mostrarAperturaCaja() {
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-overlay">
+      <div class="modal" style="max-width:380px;text-align:center">
+        <div style="font-size:48px;margin-bottom:12px">🏪</div>
+        <h3 style="margin-bottom:8px">Apertura de caja</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:20px">
+          Hola <strong>${currentUser.nombre}</strong>, ingresá el monto inicial en caja
+        </p>
+        <div class="lbl" style="text-align:left">Monto inicial en efectivo</div>
+        <input class="inp" type="number" id="monto-apertura" placeholder="0" style="margin-bottom:16px;font-size:18px;text-align:center">
+        <button class="btn btn-success" style="width:100%" onclick="abrirTurno()">✅ Abrir caja</button>
+      </div>
+    </div>`;
+}
+
+async function abrirTurno() {
+  const monto = parseFloat(document.getElementById('monto-apertura').value) || 0;
+  try {
+    const res = await fetch(`${API}/api/turnos/abrir`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ monto_apertura: monto })
+    });
+    const data = await res.json();
+    turnoActual = data.turno;
+    cerrarModal();
+    toast(`✅ Caja abierta con $${monto.toLocaleString('es-AR')}`, 'success');
+    navigate('pos');
+  } catch(e) {
+    toast('Error abriendo caja', 'error');
+  }
+}
+
+async function cerrarTurno() {
+  const ok = await confirmarAccion('¿Cerrar el turno y salir?');
+  if (!ok) return;
+  const monto = parseFloat(prompt('¿Cuánto efectivo hay en caja al cerrar?') || '0');
+  try {
+    const res = await fetch(`${API}/api/turnos/cerrar`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ monto_cierre: monto })
+    });
+    const data = await res.json();
+    toast(`✅ Turno cerrado. Total: $${parseFloat(data.total_ventas).toLocaleString('es-AR')}`, 'success');
+    turnoActual = null;
+    logout();
+  } catch(e) {
+    toast('Error cerrando turno', 'error');
+  }
+}
+
+async function renderHistorialTurnos() {
+  document.getElementById('main-content').innerHTML = '<div class="card">Cargando historial...</div>';
+  try {
+    const res = await fetch(`${API}/api/turnos/historial`, { headers: getHeaders() });
+    const turnos = await res.json();
+    document.getElementById('main-content').innerHTML = `
+      <div class="grid-3" style="margin-bottom:16px">
+        <div class="metric"><div class="metric-label">Turnos totales</div><div class="metric-val">${turnos.length}</div></div>
+        <div class="metric"><div class="metric-label">Total facturado</div><div class="metric-val">$${turnos.reduce((s,t)=>s+parseFloat(t.total_ventas||0),0).toLocaleString('es-AR')}</div></div>
+        <div class="metric"><div class="metric-label">Ventas totales</div><div class="metric-val">${turnos.reduce((s,t)=>s+parseInt(t.cantidad_ventas||0),0)}</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 Historial de turnos</div>
+        ${turnos.length === 0 ? '<p style="color:var(--muted)">No hay turnos registrados</p>' : `
+        <table>
+          <thead><tr><th>Cajero</th><th>Apertura</th><th>Cierre</th><th>Ventas</th><th>Total</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            ${turnos.map(t => `
+              <tr>
+                <td><strong>${t.usuario_nombre}</strong></td>
+                <td>${new Date(t.fecha_apertura).toLocaleString('es-AR')}</td>
+                <td>${t.fecha_cierre ? new Date(t.fecha_cierre).toLocaleString('es-AR') : '-'}</td>
+                <td>${t.cantidad_ventas}</td>
+                <td><strong>$${parseFloat(t.total_ventas||0).toLocaleString('es-AR')}</strong></td>
+                <td><span class="badge ${t.estado==='abierto'?'badge-success':'badge-info'}">${t.estado}</span></td>
+                <td><button class="btn btn-sm" onclick="verDetalleTurno(${t.id})">👁️ Ver</button></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`}
+      </div>`;
+  } catch(e) {
+    toast('Error cargando historial', 'error');
+  }
+}
+
+async function verDetalleTurno(id) {
+  try {
+    const res = await fetch(`${API}/api/turnos/historial`, { headers: getHeaders() });
+    const turnos = await res.json();
+    const t = turnos.find(t => t.id === id);
+    if (!t) return;
+    const ventas = t.ventas || [];
+    document.getElementById('modal-root').innerHTML = `
+      <div class="modal-overlay" onclick="if(event.target===this)cerrarModal()">
+        <div class="modal modal-lg">
+          <h3 style="margin-bottom:4px">Turno de ${t.usuario_nombre}</h3>
+          <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+            ${new Date(t.fecha_apertura).toLocaleString('es-AR')}
+            ${t.fecha_cierre ? '→ ' + new Date(t.fecha_cierre).toLocaleString('es-AR') : '(en curso)'}
+          </p>
+          <div class="grid-3" style="margin-bottom:16px">
+            <div class="metric"><div class="metric-label">Ventas</div><div class="metric-val">${t.cantidad_ventas}</div></div>
+            <div class="metric"><div class="metric-label">Total</div><div class="metric-val">$${parseFloat(t.total_ventas||0).toLocaleString('es-AR')}</div></div>
+            <div class="metric"><div class="metric-label">Efectivo cierre</div><div class="metric-val">$${parseFloat(t.monto_cierre||0).toLocaleString('es-AR')}</div></div>
+          </div>
+          <table>
+            <thead><tr><th>Hora</th><th>Productos</th><th>Método</th><th>Total</th></tr></thead>
+            <tbody>
+              ${ventas.map(v => `
+                <tr>
+                  <td>${new Date(v.created_at).toLocaleTimeString('es-AR')}</td>
+                  <td style="font-size:11px">${(v.items||[]).map(i=>`${i.nombre_producto} x${i.cantidad}`).join(', ')}</td>
+                  <td>${v.metodo_pago}</td>
+                  <td><strong>$${parseFloat(v.total).toLocaleString('es-AR')}</strong></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+          <div style="text-align:right;margin-top:16px">
+            <button class="btn" onclick="cerrarModal()">Cerrar</button>
+          </div>
+        </div>
+      </div>`;
+  } catch(e) {
+    toast('Error cargando detalle', 'error');
+  }
+}
 </script>
 </body>
 </html>
