@@ -225,18 +225,23 @@ async function doLogin() {
     document.getElementById('local-name-badge').innerHTML = currentUser.local_nombre ? `🏪 ${currentUser.local_nombre}` : '🌐 SuperAdmin';
 
     if (currentUser.rol === 'superadmin') {
-      document.getElementById('superadmin-panel').style.display = 'block';
-      navigate('locales');
-      document.getElementById('btn-cerrar-turno').style.display = 'none';
-document.getElementById('nav-turnos').style.display = 'block';
-    } else {
-      document.getElementById('superadmin-panel').style.display = 'none';
-      await cargarProductos();
-      navigate('pos');
-      await verificarTurno();
-document.getElementById('btn-cerrar-turno').style.display = 'block';
-document.getElementById('nav-turnos').style.display = 'none';
-    }
+  document.getElementById('superadmin-panel').style.display = 'block';
+  navigate('locales');
+  document.getElementById('btn-cerrar-turno').style.display = 'none';
+  document.getElementById('nav-turnos').style.display = 'block';
+} else {
+  document.getElementById('superadmin-panel').style.display = 'none';
+  await cargarProductos();
+  navigate('pos');
+  if (currentUser.rol === 'cajero') {
+    await verificarTurno();
+    document.getElementById('btn-cerrar-turno').style.display = 'block';
+    document.getElementById('nav-turnos').style.display = 'none';
+  } else {
+    document.getElementById('btn-cerrar-turno').style.display = 'none';
+    document.getElementById('nav-turnos').style.display = 'block';
+  }
+}
 
   } catch (err) {
     errorDiv.innerText = 'Error de conexión con el servidor';
