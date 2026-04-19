@@ -233,6 +233,7 @@ async function doLogin() {
 } else {
   document.getElementById('superadmin-panel').style.display = 'none';
   await cargarProductos();
+  await cargarConfig();
   navigate('pos');
   if (currentUser.rol === 'cajero') {
     await verificarTurno();
@@ -945,6 +946,7 @@ function guardarConfigDescuentos() {
   currentLocal.config.descuentos.activado = document.getElementById('desc-activo').checked;
   currentLocal.config.descuentos.tipo = document.getElementById('desc-tipo').value;
   currentLocal.config.descuentos.valor = parseFloat(document.getElementById('desc-valor').value) || 0;
+  guardarConfigAPI();
   toast('✅ Descuentos guardados', 'success');
 }
 
@@ -952,11 +954,13 @@ function guardarConfigIntereses() {
   if (!currentLocal.config.intereses) currentLocal.config.intereses = {};
   currentLocal.config.intereses[3] = parseFloat(document.getElementById('int-3').value) || 0;
   currentLocal.config.intereses[6] = parseFloat(document.getElementById('int-6').value) || 0;
+  guardarConfigAPI();
   toast('✅ Intereses guardados', 'success');
 }
 
 function guardarMensajeTicket() {
   currentLocal.config.mensajeTicket = document.getElementById('cfg-mensaje').value;
+  guardarConfigAPI();
   toast('✅ Mensaje guardado', 'success');
 }
 
@@ -1377,6 +1381,32 @@ async function renderReportes() {
   } catch(e) {
     toast('Error cargando reportes', 'error');
   }
+}
+// ==================== CONFIG PERSISTENTE ====================
+async function cargarConfig() {
+  if (!currentUser?.local_id) return;
+  try {
+    const res = await fetch(`${API}/api/locales/config`, { headers: getHeaders() });
+    if (res.ok) {
+      const config = await res.json();
+      if (currentLocal) currentLocal.config = {
+        intereses: config.intereses || { 1: 0, 3: 5, 6: 10 },
+        descuentos: config.descuentos || { activado: false, tipo: 'porcentaje', valor: 0 },
+        mensajeTicket: config.mensajeTicket || '¡Gracias por su compra!'
+      };
+    }
+  } catch(e) { console.error('Error cargando config:', e); }
+}
+
+async function guardarConfigAPI() {
+  if (!currentLocal) return;
+  try {
+    await fetch(`${API}/api/locales/config`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(currentLocal.config)
+    });
+  } catch(e) { console.error('Error guardando config:', e); }
 }
 </script>
 </body>

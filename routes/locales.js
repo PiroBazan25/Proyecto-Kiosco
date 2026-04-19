@@ -89,5 +89,33 @@ router.put('/:id/suscripcion', verificarToken, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// GET config del local
+router.get('/config', verificarToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT config FROM locales WHERE id = $1',
+      [req.usuario.local_id]
+    );
+    res.json(result.rows[0]?.config || {});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT config del local
+router.put('/config', verificarToken, async (req, res) => {
+  if (!['admin_local', 'superadmin'].includes(req.usuario.rol)) {
+    return res.status(403).json({ error: 'Sin permiso' });
+  }
+  try {
+    const result = await pool.query(
+      'UPDATE locales SET config = $1 WHERE id = $2 RETURNING config',
+      [req.body, req.usuario.local_id]
+    );
+    res.json(result.rows[0].config);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router;
