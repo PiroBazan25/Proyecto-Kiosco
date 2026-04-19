@@ -3,15 +3,42 @@ const router = express.Router();
 const pool = require('../db');
 const verificarToken = require('../middleware/auth');
 
+// GET config del local (ANTES de /:id)
+router.get('/config', verificarToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT config FROM locales WHERE id = $1',
+      [req.usuario.local_id]
+    );
+    res.json(result.rows[0]?.config || {});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT config del local (ANTES de /:id)
+router.put('/config', verificarToken, async (req, res) => {
+  if (!['admin_local', 'superadmin'].includes(req.usuario.rol)) {
+    return res.status(403).json({ error: 'Sin permiso' });
+  }
+  try {
+    const result = await pool.query(
+      'UPDATE locales SET config = $1 WHERE id = $2 RETURNING config',
+      [req.body, req.usuario.local_id]
+    );
+    res.json(result.rows[0].config);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET - Listar todos los locales (solo superadmin)
 router.get('/', verificarToken, async (req, res) => {
   if (req.usuario.rol !== 'superadmin') {
     return res.status(403).json({ error: 'Sin permiso' });
   }
   try {
-    const result = await pool.query(
-      'SELECT * FROM locales ORDER BY created_at DESC'
-    );
+    const result = await pool.query('SELECT * FROM locales ORDER BY created_at DESC');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -27,13 +54,11 @@ router.post('/', verificarToken, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-
     const localResult = await client.query(
       'INSERT INTO locales (nombre, direccion, telefono, plan, suscripcion_vence) VALUES ($1,$2,$3,$4,$5) RETURNING *',
       [nombre, direccion, telefono, plan || 'basico', vence]
     );
     const local = localResult.rows[0];
-
     if (dueno) {
       const bcrypt = require('bcryptjs');
       const pinHash = await bcrypt.hash(dueno.pin, 10);
@@ -42,7 +67,6 @@ router.post('/', verificarToken, async (req, res) => {
         [local.id, dueno.nombre, dueno.email, pinHash, 'admin_local']
       );
     }
-
     await client.query('COMMIT');
     res.json(local);
   } catch (err) {
@@ -54,22 +78,6 @@ router.post('/', verificarToken, async (req, res) => {
     }
   } finally {
     client.release();
-  }
-});
-
-router.put('/:id', verificarToken, async (req, res) => {
-  if (req.usuario.rol !== 'superadmin') {
-    return res.status(403).json({ error: 'Sin permiso' });
-  }
-  const { nombre, direccion, telefono, plan, vence } = req.body;
-  try {
-    const result = await pool.query(
-      'UPDATE locales SET nombre=$1, direccion=$2, telefono=$3, plan=$4, suscripcion_vence=$5 WHERE id=$6 RETURNING *',
-      [nombre, direccion, telefono, plan, vence, req.params.id]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
 });
 
@@ -89,30 +97,19 @@ router.put('/:id/suscripcion', verificarToken, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// GET config del local
-router.get('/config', verificarToken, async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT config FROM locales WHERE id = $1',
-      [req.usuario.local_id]
-    );
-    res.json(result.rows[0]?.config || {});
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
-// PUT config del local
-router.put('/config', verificarToken, async (req, res) => {
-  if (!['admin_local', 'superadmin'].includes(req.usuario.rol)) {
+// PUT - Editar local
+router.put('/:id', verificarToken, async (req, res) => {
+  if (req.usuario.rol !== 'superadmin') {
     return res.status(403).json({ error: 'Sin permiso' });
   }
+  const { nombre, direccion, telefono, plan, vence } = req.body;
   try {
     const result = await pool.query(
-      'UPDATE locales SET config = $1 WHERE id = $2 RETURNING config',
-      [req.body, req.usuario.local_id]
+      'UPDATE locales SET nombre=$1, direccion=$2, telefono=$3, plan=$4, suscripcion_vence=$5 WHERE id=$6 RETURNING *',
+      [nombre, direccion, telefono, plan, vence, req.params.id]
     );
-    res.json(result.rows[0].config);
+    res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
