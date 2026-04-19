@@ -777,28 +777,47 @@ async function renderStock() {
 }
 
 // ==================== PROVEEDORES ====================
-function renderProveedores() {
+async function renderProveedores() {
   document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="modalProveedor()">+ Nuevo proveedor</button>`;
-  const provs = currentLocal?.proveedores || [];
-  document.getElementById('main-content').innerHTML = `
-    <div class="card">
-      <div class="card-title">🚚 Proveedores</div>
-      ${provs.length === 0 ? '<p style="color:var(--muted)">No hay proveedores registrados</p>' : `
-      <table>
-        <thead><tr><th>Nombre</th><th>Contacto</th><th>Teléfono</th></tr></thead>
-        <tbody>${provs.map(p=>`<tr><td>${p.nombre}</td><td>${p.contacto||'-'}</td><td>${p.telefono||'-'}</td></tr>`).join('')}</tbody>
-      </table>`}
-    </div>`;
+  document.getElementById('main-content').innerHTML = '<div class="card">Cargando proveedores...</div>';
+  try {
+    const res = await fetch(`${API}/api/compras/proveedores`, { headers: getHeaders() });
+    proveedoresCache = await res.json();
+    document.getElementById('main-content').innerHTML = `
+      <div class="card">
+        <div class="card-title">🚚 Proveedores</div>
+        ${proveedoresCache.length === 0 ? '<p style="color:var(--muted)">No hay proveedores registrados</p>' : `
+        <table>
+          <thead><tr><th>Nombre</th><th>Contacto</th><th>Teléfono</th><th>Email</th></tr></thead>
+          <tbody>
+            ${proveedoresCache.map(p => `
+              <tr>
+                <td><strong>${p.nombre}</strong></td>
+                <td>${p.contacto||'-'}</td>
+                <td>${p.telefono||'-'}</td>
+                <td>${p.email||'-'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`}
+      </div>`;
+  } catch(e) {
+    toast('Error cargando proveedores', 'error');
+  }
 }
 
-function modalProveedor(id = null) {
+function modalProveedor() {
   document.getElementById('modal-root').innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)cerrarModal()">
       <div class="modal">
         <h3 style="margin-bottom:16px">Nuevo proveedor</h3>
-        <div class="lbl">Nombre</div><input class="inp" id="prov-nombre" style="margin-bottom:12px">
-        <div class="lbl">Contacto</div><input class="inp" id="prov-contacto" style="margin-bottom:12px">
-        <div class="lbl">Teléfono</div><input class="inp" id="prov-telefono" style="margin-bottom:16px">
+        <div class="lbl">Nombre</div>
+        <input class="inp" id="prov-nombre" style="margin-bottom:12px">
+        <div class="lbl">Contacto</div>
+        <input class="inp" id="prov-contacto" style="margin-bottom:12px">
+        <div class="lbl">Teléfono</div>
+        <input class="inp" id="prov-telefono" style="margin-bottom:12px">
+        <div class="lbl">Email</div>
+        <input class="inp" id="prov-email" style="margin-bottom:16px">
         <div style="display:flex;gap:8px;justify-content:flex-end">
           <button class="btn" onclick="cerrarModal()">Cancelar</button>
           <button class="btn btn-primary" onclick="guardarProveedor()">Guardar</button>
@@ -807,14 +826,26 @@ function modalProveedor(id = null) {
     </div>`;
 }
 
-function guardarProveedor() {
+async function guardarProveedor() {
   const nombre = document.getElementById('prov-nombre').value;
   if (!nombre) { toast('El nombre es obligatorio', 'error'); return; }
-  if (!currentLocal.proveedores) currentLocal.proveedores = [];
-  currentLocal.proveedores.push({ id: Date.now(), nombre, contacto: document.getElementById('prov-contacto').value, telefono: document.getElementById('prov-telefono').value });
-  toast('✅ Proveedor guardado', 'success');
-  cerrarModal();
-  renderProveedores();
+  const body = {
+    nombre,
+    contacto: document.getElementById('prov-contacto').value,
+    telefono: document.getElementById('prov-telefono').value,
+    email: document.getElementById('prov-email').value
+  };
+  try {
+    const res = await fetch(`${API}/api/compras/proveedores`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) { toast('Error al guardar proveedor', 'error'); return; }
+    toast('✅ Proveedor guardado', 'success');
+    cerrarModal();
+    renderProveedores();
+  } catch(e) { toast('Error de conexión', 'error'); }
 }
 
 // ==================== USUARIOS ====================
