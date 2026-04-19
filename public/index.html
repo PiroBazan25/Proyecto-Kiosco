@@ -561,7 +561,7 @@ function imprimirTicket(venta) {
       ${local?.direccion ? `<div style="font-size:11px">${local.direccion}</div>` : ''}
       ${local?.telefono ? `<div style="font-size:11px">Tel: ${local.telefono}</div>` : ''}
       <div style="font-size:11px">${fecha}</div>
-      <div style="font-size:11px">Ticket #${venta.id}</div>
+      <div style="font-size:11px">Ticket #${venta.numero_ticket || venta.id}</div>
     </div>
     <div style="border-top:1px dashed #000;margin:6px 0"></div>
   `;
