@@ -110,6 +110,7 @@ th{color:var(--muted);font-weight:600;font-size:11px}
         <div class="nav-item" data-page="productos" onclick="navigate('productos')"><span>📦</span> Productos</div>
         <div class="nav-item" data-page="stock" onclick="navigate('stock')"><span>📊</span> Stock</div>
         <div class="nav-item" data-page="proveedores" onclick="navigate('proveedores')"><span>🚚</span> Proveedores</div>
+        <div class="nav-item" data-page="compras" onclick="navigate('compras')"><span>🛒</span> Compras</div>
         <div class="nav-item" data-page="clientes" onclick="navigate('clientes')"><span>👤</span> Clientes</div>
         <div class="nav-item" data-page="usuarios" onclick="navigate('usuarios')"><span>👥</span> Usuarios</div>
         <div class="nav-item" data-page="config" onclick="navigate('config')"><span>⚙️</span> Configuración</div>
@@ -296,6 +297,7 @@ function navigate(page) {
   else if (page === 'turnos') renderHistorialTurnos();
   else if (page === 'reportes') renderReportes();
   else if (page === 'clientes') renderClientes();
+  else if (page === 'compras') renderCompras();
 }
 
 // ==================== API CALLS ====================
@@ -1545,6 +1547,169 @@ async function registrarPago(clienteId) {
     if (!res.ok) { toast('Error al registrar pago', 'error'); return; }
     toast('✅ Pago registrado', 'success');
     renderClientes();
+  } catch(e) { toast('Error de conexión', 'error'); }
+}
+// ==================== COMPRAS ====================
+let proveedoresCache = [];
+let itemsCompra = [];
+
+async function renderCompras() {
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="modalCompra()">+ Nueva compra</button>`;
+  document.getElementById('main-content').innerHTML = '<div class="card">Cargando compras...</div>';
+  try {
+    const res = await fetch(`${API}/api/compras`, { headers: getHeaders() });
+    const compras = await res.json();
+    const totalCompras = compras.reduce((s,c) => s + parseFloat(c.total||0), 0);
+    document.getElementById('main-content').innerHTML = `
+      <div class="grid-3" style="margin-bottom:16px">
+        <div class="metric"><div class="metric-label">Total compras</div><div class="metric-val">${compras.length}</div></div>
+        <div class="metric"><div class="metric-label">Gastado total</div><div class="metric-val">$${totalCompras.toLocaleString('es-AR')}</div></div>
+        <div class="metric"><div class="metric-label">Este mes</div><div class="metric-val">$${compras.filter(c=>new Date(c.created_at).getMonth()===new Date().getMonth()).reduce((s,c)=>s+parseFloat(c.total||0),0).toLocaleString('es-AR')}</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🛒 Historial de compras</div>
+        ${compras.length === 0 ? '<p style="color:var(--muted)">No hay compras registradas</p>' : `
+        <table>
+          <thead><tr><th>Fecha</th><th>Proveedor</th><th>Productos</th><th>Total</th></tr></thead>
+          <tbody>
+            ${compras.map(c => `
+              <tr>
+                <td>${new Date(c.created_at).toLocaleString('es-AR')}</td>
+                <td>${c.proveedor_nombre||'-'}</td>
+                <td style="font-size:11px">${(c.items||[]).filter(i=>i.nombre_producto).map(i=>`${i.nombre_producto} x${i.cantidad}`).join(', ')}</td>
+                <td><strong>$${parseFloat(c.total).toLocaleString('es-AR')}</strong></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`}
+      </div>`;
+  } catch(e) {
+    toast('Error cargando compras', 'error');
+  }
+}
+
+async function modalCompra() {
+  itemsCompra = [];
+  try {
+    const resP = await fetch(`${API}/api/compras/proveedores`, { headers: getHeaders() });
+    proveedoresCache = await resP.json();
+  } catch(e) { proveedoresCache = []; }
+
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)cerrarModal()">
+      <div class="modal modal-lg">
+        <h3 style="margin-bottom:16px">Nueva compra</h3>
+        <div class="grid-2" style="margin-bottom:12px">
+          <div>
+            <div class="lbl">Proveedor</div>
+            <select class="inp" id="compra-proveedor">
+              <option value="">Sin proveedor</option>
+              ${proveedoresCache.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <div class="lbl">Notas</div>
+            <input class="inp" id="compra-notas" placeholder="Opcional">
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+          <div class="card-title">Agregar productos</div>
+          <div class="grid-3" style="margin-bottom:8px">
+            <div>
+              <div class="lbl">Producto</div>
+              <select class="inp" id="compra-producto">
+                ${productosCache.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <div class="lbl">Cantidad</div>
+              <input class="inp" type="number" id="compra-cantidad" value="1" min="1">
+            </div>
+            <div>
+              <div class="lbl">Precio unitario</div>
+              <input class="inp" type="number" id="compra-precio" placeholder="0">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="agregarItemCompra()">+ Agregar</button>
+        </div>
+        <div id="items-compra-lista" style="margin-bottom:16px"></div>
+        <div id="compra-total" style="font-size:18px;font-weight:700;text-align:right;margin-bottom:16px"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="cerrarModal()">Cancelar</button>
+          <button class="btn btn-success" onclick="guardarCompra()">✅ Registrar compra</button>
+        </div>
+      </div>
+    </div>`;
+  renderItemsCompra();
+}
+
+function agregarItemCompra() {
+  const productoId = parseInt(document.getElementById('compra-producto').value);
+  const cantidad = parseInt(document.getElementById('compra-cantidad').value);
+  const precio = parseFloat(document.getElementById('compra-precio').value);
+  const prod = productosCache.find(p => p.id === productoId);
+  if (!prod || !cantidad || !precio) { toast('Completá todos los campos', 'error'); return; }
+  const existing = itemsCompra.find(i => i.producto_id === productoId);
+  if (existing) {
+    existing.cantidad += cantidad;
+  } else {
+    itemsCompra.push({ producto_id: productoId, nombre_producto: prod.nombre, cantidad, precio_unitario: precio });
+  }
+  renderItemsCompra();
+}
+
+function renderItemsCompra() {
+  const lista = document.getElementById('items-compra-lista');
+  const totalEl = document.getElementById('compra-total');
+  if (!lista) return;
+  if (itemsCompra.length === 0) {
+    lista.innerHTML = '<p style="color:var(--muted);font-size:13px">No hay productos agregados</p>';
+    if (totalEl) totalEl.innerHTML = '';
+    return;
+  }
+  const total = itemsCompra.reduce((s,i) => s + i.precio_unitario * i.cantidad, 0);
+  lista.innerHTML = `
+    <table>
+      <thead><tr><th>Producto</th><th>Cantidad</th><th>Precio unit.</th><th>Subtotal</th><th></th></tr></thead>
+      <tbody>
+        ${itemsCompra.map((item, idx) => `
+          <tr>
+            <td>${item.nombre_producto}</td>
+            <td>${item.cantidad}</td>
+            <td>$${item.precio_unitario.toLocaleString('es-AR')}</td>
+            <td>$${(item.precio_unitario * item.cantidad).toLocaleString('es-AR')}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="quitarItemCompra(${idx})">✕</button></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+  if (totalEl) totalEl.innerHTML = `Total: $${total.toLocaleString('es-AR')}`;
+}
+
+function quitarItemCompra(idx) {
+  itemsCompra.splice(idx, 1);
+  renderItemsCompra();
+}
+
+async function guardarCompra() {
+  if (itemsCompra.length === 0) { toast('Agregá al menos un producto', 'error'); return; }
+  const proveedorId = document.getElementById('compra-proveedor').value;
+  const proveedor = proveedoresCache.find(p => p.id === parseInt(proveedorId));
+  const body = {
+    proveedor_id: proveedorId || null,
+    proveedor_nombre: proveedor?.nombre || 'Sin proveedor',
+    items: itemsCompra,
+    notas: document.getElementById('compra-notas').value
+  };
+  try {
+    const res = await fetch(`${API}/api/compras`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) { toast('Error al registrar compra', 'error'); return; }
+    toast('✅ Compra registrada y stock actualizado', 'success');
+    cerrarModal();
+    await cargarProductos();
+    renderCompras();
   } catch(e) { toast('Error de conexión', 'error'); }
 }
 </script>
