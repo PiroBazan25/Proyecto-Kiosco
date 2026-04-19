@@ -272,7 +272,8 @@ function hasPermission(action) {
   if (!currentUser) return false;
   if (currentUser.rol === 'superadmin') return true;
   if (currentUser.rol === 'admin_local') return true;
-  return ['pos', 'ventas'].includes(action);
+  const permisosCajero = ['pos', 'ventas', 'clientes'];
+  return permisosCajero.includes(action);
 }
 
 function navigate(page) {
