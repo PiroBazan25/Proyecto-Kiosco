@@ -110,6 +110,7 @@ th{color:var(--muted);font-weight:600;font-size:11px}
         <div class="nav-item" data-page="productos" onclick="navigate('productos')"><span>📦</span> Productos</div>
         <div class="nav-item" data-page="stock" onclick="navigate('stock')"><span>📊</span> Stock</div>
         <div class="nav-item" data-page="proveedores" onclick="navigate('proveedores')"><span>🚚</span> Proveedores</div>
+        <div class="nav-item" data-page="clientes" onclick="navigate('clientes')"><span>👤</span> Clientes</div>
         <div class="nav-item" data-page="usuarios" onclick="navigate('usuarios')"><span>👥</span> Usuarios</div>
         <div class="nav-item" data-page="config" onclick="navigate('config')"><span>⚙️</span> Configuración</div>
         <div id="superadmin-panel" style="display:none">
@@ -294,6 +295,7 @@ function navigate(page) {
   else if (page === 'soporte') renderSoporte();
   else if (page === 'turnos') renderHistorialTurnos();
   else if (page === 'reportes') renderReportes();
+  else if (page === 'clientes') renderClientes();
 }
 
 // ==================== API CALLS ====================
@@ -1407,6 +1409,143 @@ async function guardarConfigAPI() {
       body: JSON.stringify(currentLocal.config)
     });
   } catch(e) { console.error('Error guardando config:', e); }
+}
+// ==================== CLIENTES Y FIADO ====================
+let clientesCache = [];
+
+async function renderClientes() {
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="modalCliente()">+ Nuevo cliente</button>`;
+  document.getElementById('main-content').innerHTML = '<div class="card">Cargando clientes...</div>';
+  try {
+    const res = await fetch(`${API}/api/clientes`, { headers: getHeaders() });
+    clientesCache = await res.json();
+    const conDeuda = clientesCache.filter(c => parseFloat(c.deuda) > 0);
+    document.getElementById('main-content').innerHTML = `
+      <div class="grid-3" style="margin-bottom:16px">
+        <div class="metric"><div class="metric-label">Total clientes</div><div class="metric-val">${clientesCache.length}</div></div>
+        <div class="metric"><div class="metric-label">Con deuda</div><div class="metric-val" style="color:var(--danger)">${conDeuda.length}</div></div>
+        <div class="metric"><div class="metric-label">Total fiado</div><div class="metric-val" style="color:var(--danger)">$${clientesCache.reduce((s,c)=>s+parseFloat(c.deuda||0),0).toLocaleString('es-AR')}</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">👤 Clientes</div>
+        ${clientesCache.length === 0 ? '<p style="color:var(--muted)">No hay clientes registrados</p>' : `
+        <table>
+          <thead><tr><th>Nombre</th><th>Teléfono</th><th>Deuda</th><th></th></tr></thead>
+          <tbody>
+            ${clientesCache.map(c => `
+              <tr>
+                <td><strong>${c.nombre}</strong></td>
+                <td>${c.telefono||'-'}</td>
+                <td style="color:${parseFloat(c.deuda)>0?'var(--danger)':'var(--success)'}">
+                  <strong>$${parseFloat(c.deuda||0).toLocaleString('es-AR')}</strong>
+                </td>
+                <td style="display:flex;gap:4px">
+                  <button class="btn btn-sm" onclick="modalCliente(${c.id})">✏️</button>
+                  <button class="btn btn-sm btn-warning" onclick="modalFiado(${c.id})">💳 Fiado</button>
+                  ${parseFloat(c.deuda)>0?`<button class="btn btn-sm btn-success" onclick="registrarPago(${c.id})">💰 Pagar</button>`:''}
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`}
+      </div>`;
+  } catch(e) {
+    toast('Error cargando clientes', 'error');
+  }
+}
+
+function modalCliente(id = null) {
+  const c = id ? clientesCache.find(c => c.id === id) : null;
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)cerrarModal()">
+      <div class="modal">
+        <h3 style="margin-bottom:16px">${id ? 'Editar' : 'Nuevo'} cliente</h3>
+        <div class="lbl">Nombre</div>
+        <input class="inp" id="cli-nombre" value="${c?.nombre||''}" style="margin-bottom:12px">
+        <div class="lbl">Teléfono</div>
+        <input class="inp" id="cli-telefono" value="${c?.telefono||''}" style="margin-bottom:12px">
+        <div class="lbl">Email</div>
+        <input class="inp" id="cli-email" value="${c?.email||''}" style="margin-bottom:12px">
+        <div class="lbl">Notas</div>
+        <textarea class="inp" id="cli-notas" rows="2" style="margin-bottom:16px">${c?.notas||''}</textarea>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="cerrarModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="guardarCliente(${id||'null'})">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function guardarCliente(id) {
+  const nombre = document.getElementById('cli-nombre').value;
+  if (!nombre) { toast('El nombre es obligatorio', 'error'); return; }
+  const body = {
+    nombre,
+    telefono: document.getElementById('cli-telefono').value,
+    email: document.getElementById('cli-email').value,
+    notas: document.getElementById('cli-notas').value
+  };
+  try {
+    const url = id ? `${API}/api/clientes/${id}` : `${API}/api/clientes`;
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: getHeaders(), body: JSON.stringify(body) });
+    if (!res.ok) { toast('Error al guardar', 'error'); return; }
+    toast('✅ Cliente guardado', 'success');
+    cerrarModal();
+    renderClientes();
+  } catch(e) { toast('Error de conexión', 'error'); }
+}
+
+function modalFiado(clienteId) {
+  const c = clientesCache.find(c => c.id === clienteId);
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)cerrarModal()">
+      <div class="modal">
+        <h3 style="margin-bottom:8px">Registrar fiado</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+          Cliente: <strong>${c?.nombre}</strong> — Deuda actual: <strong style="color:var(--danger)">$${parseFloat(c?.deuda||0).toLocaleString('es-AR')}</strong>
+        </p>
+        <div class="lbl">Monto a fiar</div>
+        <input class="inp" type="number" id="fiado-monto" placeholder="0" style="margin-bottom:16px;font-size:18px;text-align:center">
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="cerrarModal()">Cancelar</button>
+          <button class="btn btn-warning" onclick="guardarFiado(${clienteId})">💳 Registrar fiado</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function guardarFiado(clienteId) {
+  const monto = parseFloat(document.getElementById('fiado-monto').value);
+  if (!monto || monto <= 0) { toast('Ingresá un monto válido', 'error'); return; }
+  try {
+    const res = await fetch(`${API}/api/clientes/${clienteId}/fiado`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ monto })
+    });
+    if (!res.ok) { toast('Error al registrar fiado', 'error'); return; }
+    toast('✅ Fiado registrado', 'success');
+    cerrarModal();
+    renderClientes();
+  } catch(e) { toast('Error de conexión', 'error'); }
+}
+
+async function registrarPago(clienteId) {
+  const c = clientesCache.find(c => c.id === clienteId);
+  const ok = await confirmarAccion(`¿Registrar pago de deuda de ${c?.nombre}? Deuda: $${parseFloat(c?.deuda||0).toLocaleString('es-AR')}`);
+  if (!ok) return;
+  const monto = parseFloat(prompt(`Monto a pagar (deuda total: $${parseFloat(c?.deuda||0).toLocaleString('es-AR')}):`) || '0');
+  if (!monto || monto <= 0) return;
+  try {
+    const res = await fetch(`${API}/api/clientes/${clienteId}/pagar`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ monto })
+    });
+    if (!res.ok) { toast('Error al registrar pago', 'error'); return; }
+    toast('✅ Pago registrado', 'success');
+    renderClientes();
+  } catch(e) { toast('Error de conexión', 'error'); }
 }
 </script>
 </body>
