@@ -302,6 +302,7 @@ async function doLogin() {
 
     if (currentUser.rol === 'superadmin') {
   document.getElementById('superadmin-panel').style.display = 'block';
+  beep('login');
   navigate('locales');
   document.getElementById('btn-cerrar-turno').style.display = 'none';
   document.getElementById('nav-turnos').style.display = 'block';
@@ -309,6 +310,7 @@ async function doLogin() {
   document.getElementById('superadmin-panel').style.display = 'none';
   await cargarProductos();
   await cargarConfig();
+  beep('login');
   navigate('pos');
   if (currentUser.rol === 'cajero') {
     await verificarTurno();
@@ -504,6 +506,7 @@ function filterProducts(q) {
     (p.cod_barras && p.cod_barras.includes(q))
   );
   if (prods.length === 1 && q.length > 5) {
+    beep('scanner');
     addToTicket(prods[0].id);
     document.getElementById('buscar-pos').value = '';
     renderProductGrid(productosCache);
@@ -527,7 +530,9 @@ function renderProductGrid(prods) {
 function addToTicket(id) {
   const prod = productosCache.find(p => p.id === id);
   if (!prod) return;
-  if (prod.stock <= 0) { toast('Sin stock disponible', 'error'); return; }
+  if (prod.stock <= 0) { 
+    beep('error');
+    toast('Sin stock disponible', 'error'); return; }
   const existing = currentTicket.find(i => i.id === id);
   if (existing) existing.cantidad++;
   else currentTicket.push({ ...prod, precio: parseFloat(prod.precio), cantidad: 1 });
@@ -613,7 +618,7 @@ async function confirmarPago() {
       const vuelto = pago - Math.round(total);
       if (vuelto > 0) toast(`💵 Vuelto: $${vuelto.toLocaleString('es-AR')}`, 'success');
     }
-
+    beep('cobrar');
     toast('✅ Venta registrada correctamente', 'success');
     imprimirTicket(data.venta);
 
@@ -621,6 +626,7 @@ async function confirmarPago() {
     renderPOS();
 
   } catch(err) {
+    beep('error');
     toast('Error de conexión', 'error');
   }
 }
@@ -1816,6 +1822,48 @@ async function guardarCompra() {
     await cargarProductos();
     renderCompras();
   } catch(e) { toast('Error de conexión', 'error'); }
+}
+// ==================== SONIDOS ====================
+const sonidos = {
+  cobrar: new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA...'),
+};
+
+function beep(tipo = 'cobrar') {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  
+  if (tipo === 'cobrar') {
+    osc.frequency.setValueAtTime(800, ctx.currentTime);
+    osc.frequency.setValueAtTime(1000, ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.3);
+  } else if (tipo === 'error') {
+    osc.frequency.setValueAtTime(200, ctx.currentTime);
+    osc.type = 'sawtooth';
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.3);
+  } else if (tipo === 'login') {
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.frequency.setValueAtTime(800, ctx.currentTime + 0.1);
+    osc.frequency.setValueAtTime(1000, ctx.currentTime + 0.2);
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
+  } else if (tipo === 'scanner') {
+    osc.frequency.setValueAtTime(1200, ctx.currentTime);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.1);
+  }
 }
 </script>
 </body>
