@@ -68,6 +68,71 @@ th{color:var(--muted);font-weight:600;font-size:11px}
 .toast-error{background:#ef4444}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 @media print{body *{visibility:hidden}#print-area,#print-area *{visibility:visible}#print-area{position:fixed;top:0;left:0;width:80mm;background:white;color:black;padding:8px;font-family:'Courier New',monospace}}
+@media (max-width: 768px) {
+  .app { flex-direction: column; }
+  .sidebar { 
+    width: 100%; 
+    flex-direction: row; 
+    flex-wrap: wrap;
+    padding: 8px;
+    min-height: auto;
+  }
+  .sidebar-header { 
+    width: 100%; 
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sidebar-header h2 { font-size: 16px; }
+  .sidebar > div:nth-child(2) { 
+    display: flex; 
+    flex-wrap: wrap; 
+    gap: 4px;
+    width: 100%;
+    padding: 4px;
+  }
+  .nav-item { 
+    padding: 8px 10px; 
+    font-size: 12px;
+    margin: 0;
+    flex: 0 0 auto;
+  }
+  .sidebar > div:last-child {
+    width: 100%;
+    padding: 8px;
+    border-top: 1px solid rgba(255,255,255,.1);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .pos-container { 
+    grid-template-columns: 1fr; 
+  }
+  .product-grid { 
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); 
+  }
+  .grid-2, .grid-3, .grid-4 { 
+    grid-template-columns: 1fr 1fr; 
+  }
+  .grid-4 { 
+    grid-template-columns: repeat(2, 1fr); 
+  }
+  .content { padding: 10px; }
+  .topbar { padding: 10px 12px; }
+  table { font-size: 11px; }
+  th, td { padding: 6px 4px; }
+  .modal { padding: 16px; }
+  .calc-buttons { gap: 4px; }
+  .calc-btn { padding: 10px; font-size: 14px; }
+}
+
+@media (max-width: 480px) {
+  .grid-2, .grid-3, .grid-4 { 
+    grid-template-columns: 1fr; 
+  }
+  .nav-item span { display: none; }
+}
 </style>
 </head>
 <body class="light-theme" id="app-body">
