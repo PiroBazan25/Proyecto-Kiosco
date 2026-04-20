@@ -99,13 +99,21 @@ th{color:var(--muted);font-weight:600;font-size:11px}
     flex: 0 0 auto;
   }
   .sidebar > div:last-child {
-    width: 100%;
-    padding: 8px;
-    border-top: 1px solid rgba(255,255,255,.1);
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
+  width: 100%;
+  padding: 6px 8px;
+  border-top: 1px solid rgba(255,255,255,.1);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+#user-name {
+  font-size: 11px !important;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
   .pos-container { 
     grid-template-columns: 1fr; 
   }
