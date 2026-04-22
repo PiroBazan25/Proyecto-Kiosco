@@ -1372,7 +1372,7 @@ function mostrarAperturaCaja() {
 }
 
 async function abrirTurno() {
-  const monto = parseFloat(document.getElementById('monto-apertura').value) || 0;
+  const monto = parseFloat(document.getElementById('monto-apertura').value.replace(/\./g, '').replace(',', '.')) || 0;
   try {
     const res = await fetch(`${API}/api/turnos/abrir`, {
       method: 'POST',
@@ -1392,7 +1392,8 @@ async function abrirTurno() {
 async function cerrarTurno() {
   const ok = await confirmarAccion('¿Cerrar el turno y salir?');
   if (!ok) return;
-  const monto = parseFloat(prompt('¿Cuánto efectivo hay en caja al cerrar?') || '0');
+  const montoStr = prompt('¿Cuánto efectivo hay en caja al cerrar?') || '0';
+  const monto = parseFloat(montoStr.replace(/\./g, '').replace(',', '.')) || 0;
   try {
     const res = await fetch(`${API}/api/turnos/cerrar`, {
       method: 'POST',
@@ -1400,6 +1401,7 @@ async function cerrarTurno() {
       body: JSON.stringify({ monto_cierre: monto })
     });
     const data = await res.json();
+    beep('salir');
     toast(`✅ Turno cerrado. Total: $${parseFloat(data.total_ventas).toLocaleString('es-AR')}`, 'success');
     turnoActual = null;
     logout();
@@ -1470,7 +1472,7 @@ async function verDetalleTurno(id) {
             <tbody>
               ${ventas.map(v => `
                 <tr>
-                  <td>${new Date(v.created_at).toLocaleTimeString('es-AR')}</td>
+                 <td>${new Date(v.created_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}</td>
                   <td style="font-size:11px">${(v.items||[]).map(i=>`${i.nombre_producto} x${i.cantidad}`).join(', ')}</td>
                   <td>${v.metodo_pago}</td>
                   <td><strong>$${parseFloat(v.total).toLocaleString('es-AR')}</strong></td>
