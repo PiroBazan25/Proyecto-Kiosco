@@ -808,7 +808,7 @@ async function buscarVentas(todo = false) {
             <tbody>
               ${ventasDia.map(v => `
                 <tr>
-                  <td>${new Date(v.created_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</td>
+                  <td>${new Date(v.created_at).toLocaleTimeString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', hour12: false })}</td>
                   <td>${v.cajero || '-'}</td>
                   <td style="font-size:11px">${(v.items||[]).filter(i=>i.nombre).map(i=>`${i.nombre} x${i.cantidad}`).join(', ')}</td>
                   <td>${parseFloat(v.descuento||0)>0?'-$'+parseFloat(v.descuento).toLocaleString('es-AR'):'-'}</td>
