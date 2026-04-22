@@ -1322,6 +1322,14 @@ document.addEventListener('keydown', function(e) {
   const posActivo = document.getElementById('product-grid-pos');
   const calcDisplay = document.getElementById('calc-display');
   if (!posActivo || !calcDisplay) return;
+  
+  // Si hay un modal abierto no hacer nada
+  const modalRoot = document.getElementById('modal-root');
+  if (modalRoot && modalRoot.innerHTML.trim() !== '') return;
+  
+  // Si el foco está en un input no hacer nada
+  const tagActivo = document.activeElement.tagName;
+  if (tagActivo === 'INPUT' || tagActivo === 'TEXTAREA' || tagActivo === 'SELECT') return;
 
   if (e.key >= '0' && e.key <= '9') {
     calcAdd(e.key);
@@ -1415,8 +1423,7 @@ async function renderHistorialTurnos() {
         <div class="card-title">📋 Historial de turnos</div>
         ${turnos.length === 0 ? '<p style="color:var(--muted)">No hay turnos registrados</p>' : `
         <table>
-          <thead><tr><th>Cajero</th><th>Apertura</th><th>Cierre</th><th>Ventas</th><th>Total</th><th>Estado</th><th></th></tr></thead>
-          <tbody>
+          <thead><tr><th>Cajero</th><th>Apertura</th><th>Cierre</th><th>Ventas</th><th>Total</th><th>Inicio caja</th><th>Cierre caja</th><th>Estado</th><th></th></tr></thead>          <tbody>
             ${turnos.map(t => `
               <tr>
                 <td><strong>${t.usuario_nombre}</strong></td>
@@ -1424,6 +1431,8 @@ async function renderHistorialTurnos() {
                 <td>${t.fecha_cierre ? new Date(t.fecha_cierre).toLocaleString('es-AR') : '-'}</td>
                 <td>${t.cantidad_ventas}</td>
                 <td><strong>$${parseFloat(t.total_ventas||0).toLocaleString('es-AR')}</strong></td>
+                <td style="color:var(--accent)">$${parseFloat(t.monto_apertura||0).toLocaleString('es-AR')}</td>
+                <td style="color:var(--success)">$${parseFloat(t.monto_cierre||0).toLocaleString('es-AR')}</td>
                 <td><span class="badge ${t.estado==='abierto'?'badge-success':'badge-info'}">${t.estado}</span></td>
                 <td><button class="btn btn-sm" onclick="verDetalleTurno(${t.id})">👁️ Ver</button></td>
               </tr>`).join('')}
@@ -1450,10 +1459,11 @@ async function verDetalleTurno(id) {
             ${new Date(t.fecha_apertura).toLocaleString('es-AR')}
             ${t.fecha_cierre ? '→ ' + new Date(t.fecha_cierre).toLocaleString('es-AR') : '(en curso)'}
           </p>
-          <div class="grid-3" style="margin-bottom:16px">
+          <div class="grid-4" style="margin-bottom:16px">
             <div class="metric"><div class="metric-label">Ventas</div><div class="metric-val">${t.cantidad_ventas}</div></div>
-            <div class="metric"><div class="metric-label">Total</div><div class="metric-val">$${parseFloat(t.total_ventas||0).toLocaleString('es-AR')}</div></div>
-            <div class="metric"><div class="metric-label">Efectivo cierre</div><div class="metric-val">$${parseFloat(t.monto_cierre||0).toLocaleString('es-AR')}</div></div>
+            <div class="metric"><div class="metric-label">Total vendido</div><div class="metric-val">$${parseFloat(t.total_ventas||0).toLocaleString('es-AR')}</div></div>
+            <div class="metric"><div class="metric-label">Efectivo apertura</div><div class="metric-val" style="color:var(--accent)">$${parseFloat(t.monto_apertura||0).toLocaleString('es-AR')}</div></div>
+            <div class="metric"><div class="metric-label">Efectivo cierre</div><div class="metric-val" style="color:var(--success)">$${parseFloat(t.monto_cierre||0).toLocaleString('es-AR')}</div></div>
           </div>
           <table>
             <thead><tr><th>Hora</th><th>Productos</th><th>Método</th><th>Total</th></tr></thead>
