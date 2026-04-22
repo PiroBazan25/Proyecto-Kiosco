@@ -729,33 +729,119 @@ function imprimirTicket(venta) {
 
 // ==================== VENTAS ====================
 async function renderVentas() {
-  document.getElementById('main-content').innerHTML = '<div class="card">Cargando ventas...</div>';
-  const ventas = await cargarVentas();
-  const total = ventas.reduce((s, v) => s + parseFloat(v.total || 0), 0);
-  document.getElementById('main-content').innerHTML = `
-    <div class="grid-3" style="margin-bottom:16px">
-      <div class="metric"><div class="metric-label">Total ventas</div><div class="metric-val">${ventas.length}</div></div>
-      <div class="metric"><div class="metric-label">Facturado hoy</div><div class="metric-val">$${ventas.filter(v=>v.created_at?.startsWith(new Date().toISOString().split('T')[0])).reduce((s,v)=>s+parseFloat(v.total||0),0).toLocaleString('es-AR')}</div></div>
-      <div class="metric"><div class="metric-label">Total facturado</div><div class="metric-val">$${total.toLocaleString('es-AR')}</div></div>
-    </div>
-    <div class="card">
-      <div class="card-title">📋 Historial de ventas</div>
-      ${ventas.length === 0 ? '<p style="color:var(--muted)">No hay ventas registradas</p>' : `
-      <table>
-        <thead><tr><th>Fecha</th><th>Cajero</th><th>Productos</th><th>Desc.</th><th>Total</th><th>Método</th></tr></thead>
-        <tbody>
-          ${ventas.map(v => `
-            <tr>
-              <td>${new Date(v.created_at).toLocaleString('es-AR')}</td>
-              <td>${v.cajero || '-'}</td>
-              <td style="font-size:11px">${(v.items||[]).map(i=>`${i.nombre} x${i.cantidad}`).join(', ')}</td>
-              <td>${parseFloat(v.descuento||0)>0?'-$'+parseFloat(v.descuento).toLocaleString('es-AR'):'-'}</td>
-              <td><strong>$${parseFloat(v.total).toLocaleString('es-AR')}</strong></td>
-              <td>${v.metodo_pago}</td>
-            </tr>`).join('')}
-        </tbody>
-      </table>`}
+  document.getElementById('topbar-actions').innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input type="date" class="inp" id="filtro-desde" style="width:140px">
+      <input type="date" class="inp" id="filtro-hasta" style="width:140px">
+      <button class="btn btn-primary" onclick="buscarVentas()">🔍 Buscar</button>
+      <button class="btn" onclick="buscarVentas(true)">Ver todo</button>
     </div>`;
+
+  const hoy = new Date().toISOString().split('T')[0];
+  document.getElementById('filtro-desde').value = hoy;
+  document.getElementById('filtro-hasta').value = hoy;
+
+  await buscarVentas();
+}
+
+async function buscarVentas(todo = false) {
+  const desde = todo ? '' : document.getElementById('filtro-desde')?.value || '';
+  const hasta = todo ? '' : document.getElementById('filtro-hasta')?.value || '';
+
+  document.getElementById('main-content').innerHTML = '<div class="card">Cargando ventas...</div>';
+
+  try {
+    let url = `${API}/api/ventas`;
+    const params = [];
+    if (desde) params.push(`desde=${desde}`);
+    if (hasta) params.push(`hasta=${hasta}`);
+    if (params.length) url += '?' + params.join('&');
+
+    const res = await fetch(url, { headers: getHeaders() });
+    const ventas = await res.json();
+
+    if (ventas.length === 0) {
+      document.getElementById('main-content').innerHTML = `
+        <div class="card" style="text-align:center;padding:40px">
+          <div style="font-size:48px;margin-bottom:12px">📋</div>
+          <p style="color:var(--muted)">No hay ventas en ese período</p>
+        </div>`;
+      return;
+    }
+
+    // Agrupar por dia
+    const porDia = {};
+    ventas.forEach(v => {
+      const fecha = new Date(v.created_at).toISOString().split('T')[0];
+      if (!porDia[fecha]) porDia[fecha] = [];
+      porDia[fecha].push(v);
+    });
+
+    const totalGeneral = ventas.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+
+    let html = `
+      <div class="grid-3" style="margin-bottom:16px">
+        <div class="metric"><div class="metric-label">Total ventas</div><div class="metric-val">${ventas.length}</div></div>
+        <div class="metric"><div class="metric-label">Total facturado</div><div class="metric-val">$${totalGeneral.toLocaleString('es-AR')}</div></div>
+        <div class="metric"><div class="metric-label">Días con ventas</div><div class="metric-val">${Object.keys(porDia).length}</div></div>
+      </div>`;
+
+    Object.keys(porDia).sort((a, b) => b.localeCompare(a)).forEach(fecha => {
+      const ventasDia = porDia[fecha];
+      const totalDia = ventasDia.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+      const fechaFormateada = new Date(fecha + 'T12:00:00').toLocaleDateString('es-AR', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+
+      html += `
+        <div class="card" style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div>
+              <div style="font-weight:500;font-size:15px">📅 ${fechaFormateada}</div>
+              <div style="font-size:12px;color:var(--muted)">${ventasDia.length} ventas — Total: <strong>$${totalDia.toLocaleString('es-AR')}</strong></div>
+            </div>
+            ${['admin_local', 'superadmin'].includes(currentUser?.rol) ? `
+            <button class="btn btn-sm btn-danger" onclick="borrarDia('${fecha}', '${fechaFormateada}')">🗑️ Borrar día</button>` : ''}
+          </div>
+          <table>
+            <thead><tr><th>Hora</th><th>Cajero</th><th>Productos</th><th>Desc.</th><th>Total</th><th>Método</th></tr></thead>
+            <tbody>
+              ${ventasDia.map(v => `
+                <tr>
+                  <td>${new Date(v.created_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</td>
+                  <td>${v.cajero || '-'}</td>
+                  <td style="font-size:11px">${(v.items||[]).filter(i=>i.nombre).map(i=>`${i.nombre} x${i.cantidad}`).join(', ')}</td>
+                  <td>${parseFloat(v.descuento||0)>0?'-$'+parseFloat(v.descuento).toLocaleString('es-AR'):'-'}</td>
+                  <td><strong>$${parseFloat(v.total).toLocaleString('es-AR')}</strong></td>
+                  <td>${v.metodo_pago}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    });
+
+    document.getElementById('main-content').innerHTML = html;
+
+  } catch(e) {
+    toast('Error cargando ventas', 'error');
+  }
+}
+
+async function borrarDia(fecha, fechaFormateada) {
+  const ok = await confirmarAccion(`¿Borrar todas las ventas del ${fechaFormateada}? Esta acción no se puede deshacer.`);
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API}/api/ventas/dia/${fecha}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    const data = await res.json();
+    if (!res.ok) { toast('Error al borrar', 'error'); return; }
+    toast(`✅ ${data.eliminadas} ventas eliminadas`, 'success');
+    buscarVentas();
+  } catch(e) {
+    toast('Error de conexión', 'error');
+  }
 }
 
 // ==================== PRODUCTOS ====================

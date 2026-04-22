@@ -49,28 +49,73 @@ const ventaResult = await client.query(
   }
 });
 
-// GET - Historial de ventas
+// GET - Historial de ventas agrupado por dia
 router.get('/', verificarToken, async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT v.*, u.nombre as cajero,
-       json_agg(json_build_object(
-         'nombre', vi.nombre_producto,
-         'cantidad', vi.cantidad,
-         'precio', vi.precio_unitario,
-         'subtotal', vi.subtotal
-       )) as items
-       FROM ventas v
-       LEFT JOIN usuarios u ON v.usuario_id = u.id
-       LEFT JOIN venta_items vi ON v.id = vi.venta_id
-       WHERE v.local_id = $1
-       GROUP BY v.id, u.nombre
-       ORDER BY v.created_at DESC`,
-      [req.usuario.local_id]
-    );
+    const { desde, hasta } = req.query;
+    let query = `
+      SELECT v.*, u.nombre as cajero,
+        json_agg(json_build_object(
+          'nombre', vi.nombre_producto,
+          'cantidad', vi.cantidad,
+          'precio', vi.precio_unitario,
+          'subtotal', vi.subtotal
+        ) ORDER BY vi.id) as items
+      FROM ventas v
+      LEFT JOIN usuarios u ON v.usuario_id = u.id
+      LEFT JOIN venta_items vi ON v.id = vi.venta_id
+      WHERE v.local_id = $1
+    `;
+    const params = [req.usuario.local_id];
+
+    if (desde) {
+      params.push(desde);
+      query += ` AND DATE(v.created_at) >= $${params.length}`;
+    }
+    if (hasta) {
+      params.push(hasta);
+      query += ` AND DATE(v.created_at) <= $${params.length}`;
+    }
+
+    query += ` GROUP BY v.id, u.nombre ORDER BY v.created_at DESC`;
+
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE - Borrar ventas de un dia
+router.delete('/dia/:fecha', verificarToken, async (req, res) => {
+  if (!['admin_local', 'superadmin'].includes(req.usuario.rol)) {
+    return res.status(403).json({ error: 'Sin permiso' });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const ventas = await client.query(
+      'SELECT id FROM ventas WHERE local_id = $1 AND DATE(created_at) = $2',
+      [req.usuario.local_id, req.params.fecha]
+    );
+    const ids = ventas.rows.map(v => v.id);
+    if (ids.length > 0) {
+      await client.query(
+        `DELETE FROM venta_items WHERE venta_id = ANY($1)`,
+        [ids]
+      );
+      await client.query(
+        'DELETE FROM ventas WHERE local_id = $1 AND DATE(created_at) = $2',
+        [req.usuario.local_id, req.params.fecha]
+      );
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true, eliminadas: ids.length });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
