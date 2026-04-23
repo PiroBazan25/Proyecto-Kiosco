@@ -490,7 +490,7 @@ function calcClear() { calcValue = '0'; document.getElementById('calc-display').
 function calcBack() { calcValue = calcValue.slice(0,-1) || '0'; document.getElementById('calc-display').innerText = calcValue; }
 function calcularVuelto() {
   const total = getTotalConDescuento();
-  const pago = parseInt(calcValue);
+  const pago = parseInt(calcValue.replace(/\./g, ''));
   if (isNaN(pago) || pago < total) { toast(`Monto insuficiente. Total: $${total.toLocaleString('es-AR')}`, 'error'); return; }
   const vuelto = pago - total;
   document.getElementById('vuelto-display').innerHTML = `💰 Vuelto: $${vuelto.toLocaleString('es-AR')}`;
@@ -593,7 +593,7 @@ async function confirmarPago() {
   }
 
   if (selectedPayment === 'efectivo') {
-    const pago = parseInt(calcValue);
+    const pago = parseInt(calcValue.replace(/\./g, ''));
     if (isNaN(pago) || pago < total) { toast(`Monto insuficiente. Total: $${Math.round(total).toLocaleString('es-AR')}`, 'error'); return; }
   }
 
