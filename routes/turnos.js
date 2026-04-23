@@ -60,9 +60,11 @@ router.post('/cerrar', verificarToken, async (req, res) => {
 router.get('/actual', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM turnos WHERE usuario_id = $1 AND estado = $2',
-      [req.usuario.id, 'abierto']
-    );
+  `SELECT *,
+    (fecha_apertura AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') as fecha_apertura
+   FROM turnos WHERE usuario_id = $1 AND estado = $2`,
+  [req.usuario.id, 'abierto']
+);
     res.json(result.rows[0] || null);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -76,11 +78,14 @@ router.get('/historial', verificarToken, async (req, res) => {
   }
   try {
     const turnos = await pool.query(
-      `SELECT t.* FROM turnos t
-       WHERE t.local_id = $1
-       ORDER BY t.fecha_apertura DESC`,
-      [req.usuario.local_id]
-    );
+  `SELECT t.*,
+    (t.fecha_apertura AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') as fecha_apertura,
+    (t.fecha_cierre AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') as fecha_cierre
+   FROM turnos t
+   WHERE t.local_id = $1
+   ORDER BY t.fecha_apertura DESC`,
+  [req.usuario.local_id]
+);
 
     const resultado = await Promise.all(turnos.rows.map(async (t) => {
       const ventas = await pool.query(
