@@ -5,10 +5,12 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-pool.connect((err) => {
+pool.connect(async (err, client, release) => {
   if (err) {
     console.error('Error conectando a la base de datos:', err.message);
   } else {
+    await client.query("SET timezone='America/Argentina/Buenos_Aires'");
+    release();
     console.log('Conectado a Supabase correctamente');
   }
 });
