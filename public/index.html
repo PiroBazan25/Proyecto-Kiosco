@@ -593,9 +593,13 @@ async function confirmarPago() {
   }
 
   if (selectedPayment === 'efectivo') {
-    const pago = parseInt(calcValue.replace(/\./g, ''));
-    if (isNaN(pago) || pago < total) { toast(`Monto insuficiente. Total: $${Math.round(total).toLocaleString('es-AR')}`, 'error'); return; }
+  const pagoStr = calcValue.replace(/\./g, '');
+  const pago = parseInt(pagoStr);
+  if (calcValue !== '0' && !isNaN(pago) && pago < total) { 
+    toast(`Monto insuficiente. Total: $${Math.round(total).toLocaleString('es-AR')}`, 'error'); 
+    return; 
   }
+}
 
   try {
     const res = await fetch(`${API}/api/ventas`, {
