@@ -1533,7 +1533,7 @@ ${t.fecha_cierre ? '→ ' + fechaHoraAR(t.fecha_cierre) : '(en curso)'}
             <tbody>
               ${ventas.map(v => `
                 <tr>
-                 <td>${new Date(v.created_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}</td>
+                  <td>${horaAR(v.created_at)}</td>
                   <td style="font-size:11px">${(v.items||[]).map(i=>`${i.nombre_producto} x${i.cantidad}`).join(', ')}</td>
                   <td>${v.metodo_pago}</td>
                   <td><strong>$${parseFloat(v.total).toLocaleString('es-AR')}</strong></td>
