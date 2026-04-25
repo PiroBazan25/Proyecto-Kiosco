@@ -115,4 +115,23 @@ router.put('/:id', verificarToken, async (req, res) => {
   }
 });
 
+// GET usuarios de un local especifico (solo superadmin)
+router.get('/:id/usuarios', verificarToken, async (req, res) => {
+  if (req.usuario.rol !== 'superadmin') {
+    return res.status(403).json({ error: 'Sin permiso' });
+  }
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.nombre, u.email, u.rol, u.activo, l.nombre as local_nombre
+       FROM usuarios u
+       LEFT JOIN locales l ON u.local_id = l.id
+       WHERE u.local_id = $1
+       ORDER BY u.rol, u.nombre`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 module.exports = router;

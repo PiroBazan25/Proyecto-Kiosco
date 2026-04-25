@@ -1225,6 +1225,7 @@ async function renderLocales() {
                 <td>
                   <button class="btn btn-sm" onclick="toggleSuscripcion(${l.id}, ${l.suscripcion_activa})">${l.suscripcion_activa?'⛔ Desactivar':'✅ Activar'}</button>
                   <button class="btn btn-sm" onclick="modalLocal(${l.id}, ${JSON.stringify(l).replace(/"/g, '&quot;')})">✏️</button>
+                  <button class="btn btn-sm btn-primary" onclick="verUsuariosLocal(${l.id}, '${l.nombre}')">👥 Usuarios</button>
                 </td>
               </tr>`).join('')}
           </tbody>
