@@ -1178,6 +1178,13 @@ function renderConfig() {
         <textarea class="inp" id="cfg-mensaje" rows="3" style="margin-bottom:12px">${cfg.mensajeTicket||''}</textarea>
         <button class="btn btn-primary" onclick="guardarMensajeTicket()">Guardar mensaje</button>
       </div>
+      <div class="card" style="border-color:var(--danger)">
+        <div class="card-title" style="color:var(--danger)">⚠️ Zona de peligro</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+          Estas acciones son irreversibles. Una vez ejecutadas no se pueden deshacer.
+        </p>
+        <button class="btn btn-danger" onclick="resetearHistorial()">🗑️ Borrar todo el historial de ventas</button>
+      </div>
     </div>`;
 }
 

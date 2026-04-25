@@ -119,4 +119,25 @@ router.delete('/dia/:fecha', verificarToken, async (req, res) => {
   }
 });
 
+// DELETE - Reset completo de ventas del local
+router.delete('/reset', verificarToken, async (req, res) => {
+  if (!['admin_local', 'superadmin'].includes(req.usuario.rol)) {
+    return res.status(403).json({ error: 'Sin permiso' });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM venta_items WHERE venta_id IN (SELECT id FROM ventas WHERE local_id = $1)', [req.usuario.local_id]);
+    await client.query('DELETE FROM ventas WHERE local_id = $1', [req.usuario.local_id]);
+    await client.query('DELETE FROM turnos WHERE local_id = $1', [req.usuario.local_id]);
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;
