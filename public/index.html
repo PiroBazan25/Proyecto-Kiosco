@@ -905,6 +905,11 @@ function modalProducto(id = null) {
         <div class="lbl">Nombre</div><input class="inp" id="prod-nombre" value="${prod?.nombre||''}" style="margin-bottom:12px">
         <div class="lbl">Categoría</div><input class="inp" id="prod-cat" value="${prod?.categoria||''}" style="margin-bottom:12px">
         <div class="lbl">Código de barras</div><input class="inp" id="prod-barras" value="${prod?.cod_barras||''}" placeholder="Escaneá o escribí el código" style="margin-bottom:12px">
+        <div class="lbl">Proveedor</div>
+        <select class="inp" id="prod-proveedor" style="margin-bottom:12px">
+          <option value="">Sin proveedor</option>
+          ${proveedoresCache.map(p=>`<option value="${p.id}" ${prod?.proveedor_id==p.id?'selected':''}>${p.nombre}</option>`).join('')}
+        </select>
         <div class="grid-2" style="margin-bottom:12px">
           <div><div class="lbl">Precio</div><input class="inp" type="number" id="prod-precio" value="${prod?.precio||0}"></div>
           <div><div class="lbl">Costo</div><input class="inp" type="number" id="prod-costo" value="${prod?.costo||0}"></div>
@@ -924,14 +929,18 @@ function modalProducto(id = null) {
 async function guardarProducto(id) {
   const nombre = document.getElementById('prod-nombre').value;
   if (!nombre) { toast('El nombre es obligatorio', 'error'); return; }
- const body = {
+ const proveedorId = document.getElementById('prod-proveedor').value;
+const proveedor = proveedoresCache.find(p => p.id === parseInt(proveedorId));
+const body = {
   nombre,
   categoria: document.getElementById('prod-cat').value || 'General',
-  precio: parseFloat(document.getElementById('prod-precio').value),
-  costo: parseFloat(document.getElementById('prod-costo').value),
+  precio: parseFloat(document.getElementById('prod-precio').value.replace(/\./g, '').replace(',', '.')),
+  costo: parseFloat(document.getElementById('prod-costo').value.replace(/\./g, '').replace(',', '.')),
   stock: parseInt(document.getElementById('prod-stock').value),
   stock_min: parseInt(document.getElementById('prod-min').value),
-  cod_barras: document.getElementById('prod-barras').value || null
+  cod_barras: document.getElementById('prod-barras').value || null,
+  proveedor_id: proveedorId || null,
+  proveedor_nombre: proveedor?.nombre || null
 };
   try {
     const url = id ? `${API}/api/productos/${id}` : `${API}/api/productos`;
