@@ -144,4 +144,38 @@ router.get('/:id/usuarios', verificarToken, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// DELETE - Borrar local completo
+router.delete('/:id', verificarToken, async (req, res) => {
+  if (req.usuario.rol !== 'superadmin') {
+    return res.status(403).json({ error: 'Sin permiso' });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const localId = req.params.id;
+    
+    // Borrar en orden para respetar foreign keys
+    await client.query('DELETE FROM venta_items WHERE venta_id IN (SELECT id FROM ventas WHERE local_id = $1)', [localId]);
+    await client.query('DELETE FROM ventas WHERE local_id = $1', [localId]);
+    await client.query('DELETE FROM compra_items WHERE compra_id IN (SELECT id FROM compras WHERE local_id = $1)', [localId]);
+    await client.query('DELETE FROM compras WHERE local_id = $1', [localId]);
+    await client.query('DELETE FROM fiado WHERE local_id = $1', [localId]);
+    await client.query('DELETE FROM clientes WHERE local_id = $1', [localId]);
+    await client.query('DELETE FROM turnos WHERE local_id = $1', [localId]);
+    await client.query('DELETE FROM productos WHERE local_id = $1', [localId]);
+    await client.query('DELETE FROM proveedores WHERE local_id = $1', [localId]);
+    await client.query('DELETE FROM usuarios WHERE local_id = $1', [localId]);
+    await client.query('DELETE FROM locales WHERE id = $1', [localId]);
+    
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;

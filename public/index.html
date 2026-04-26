@@ -842,6 +842,7 @@ async function buscarVentas(todo = false) {
             </div>
             ${['admin_local', 'superadmin'].includes(currentUser?.rol) ? `
             <button class="btn btn-sm btn-danger" onclick="borrarDia('${fecha}', '${fechaFormateada}')">🗑️ Borrar día</button>` : ''}
+            <button class="btn btn-sm btn-danger" onclick="borrarLocal(${l.id}, '${l.nombre}')">🗑️ Borrar</button>}
           </div>
           <table>
             <thead><tr><th>Hora</th><th>Cajero</th><th>Productos</th><th>Desc.</th><th>Total</th><th>Método</th></tr></thead>
@@ -1072,28 +1073,38 @@ async function renderUsuarios() {
     document.getElementById('main-content').innerHTML = '<div class="card">⚠️ Sin permiso</div>';
     return;
   }
-  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="modalUsuario()">+ Nuevo usuario</button>`;
+  
+  const esDueno = currentUser.rol === 'admin_local';
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="modalUsuario()">+ Nuevo ${esDueno ? 'cajero' : 'usuario'}</button>`;
   document.getElementById('main-content').innerHTML = '<div class="card">Cargando usuarios...</div>';
   
   try {
     const res = await fetch(`${API}/api/usuarios`, { headers: getHeaders() });
     const usuarios = await res.json();
+    
+    // El dueño solo ve cajeros
+    const lista = esDueno ? usuarios.filter(u => u.rol === 'cajero') : usuarios;
+    
     document.getElementById('main-content').innerHTML = `
       <div class="card">
-        <div class="card-title">👥 Usuarios del local</div>
+        <div class="card-title">👥 ${esDueno ? 'Cajeros del local' : 'Usuarios'}</div>
+        ${lista.length === 0 ? '<p style="color:var(--muted)">No hay usuarios registrados</p>' : `
         <table>
           <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
           <tbody>
-            ${usuarios.map(u => `
+            ${lista.map(u => `
               <tr>
                 <td>${u.nombre}</td>
                 <td>${u.email}</td>
                 <td>${u.rol === 'admin_local' ? '👔 Dueño' : '🧾 Cajero'}</td>
                 <td><span class="badge ${u.activo ? 'badge-success' : 'badge-danger'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
-                <td><button class="btn btn-sm" onclick="modalUsuario(${u.id}, ${JSON.stringify(u).replace(/"/g, '&quot;')})">✏️</button></td>
+                <td style="display:flex;gap:4px">
+                  <button class="btn btn-sm" onclick="modalUsuario(${u.id}, ${JSON.stringify(u).replace(/"/g, '&quot;')})">✏️</button>
+                  <button class="btn btn-sm btn-danger" onclick="borrarUsuario(${u.id}, '${u.nombre}')">🗑️</button>
+                </td>
               </tr>`).join('')}
           </tbody>
-        </table>
+        </table>`}
       </div>`;
   } catch(e) {
     toast('Error cargando usuarios', 'error');
@@ -2065,6 +2076,40 @@ function beep(tipo = 'cobrar') {
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.5);
   }
+  async function borrarUsuario(id, nombre) {
+  const ok = await confirmarAccion(`¿Borrar al usuario ${nombre}? Esta acción no se puede deshacer.`);
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API}/api/usuarios/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!res.ok) { toast('Error al borrar usuario', 'error'); return; }
+    beep('reset');
+    toast('✅ Usuario borrado', 'success');
+    renderUsuarios();
+  } catch(e) {
+    toast('Error de conexión', 'error');
+  }
+}
+async function borrarLocal(id, nombre) {
+  const ok = await confirmarAccion(`⚠️ ¿Borrar el local "${nombre}" y TODOS sus datos? Esta acción no se puede deshacer.`);
+  if (!ok) return;
+  const ok2 = await confirmarAccion(`¿Estás seguro? Se borrarán usuarios, ventas, productos y todo el historial de "${nombre}".`);
+  if (!ok2) return;
+  try {
+    const res = await fetch(`${API}/api/locales/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!res.ok) { toast('Error al borrar local', 'error'); return; }
+    beep('reset');
+    toast('✅ Local borrado correctamente', 'success');
+    renderLocales();
+  } catch(e) {
+    toast('Error de conexión', 'error');
+  }
+}
   
   
 }

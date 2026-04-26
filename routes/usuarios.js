@@ -77,4 +77,30 @@ router.put('/:id', verificarToken, async (req, res) => {
   }
 });
 
+// DELETE - Borrar usuario
+router.delete('/:id', verificarToken, async (req, res) => {
+  if (!['admin_local', 'superadmin'].includes(req.usuario.rol)) {
+    return res.status(403).json({ error: 'Sin permiso' });
+  }
+  try {
+    // El dueño solo puede borrar cajeros de su local
+    if (req.usuario.rol === 'admin_local') {
+      const usuario = await pool.query(
+        'SELECT * FROM usuarios WHERE id = $1 AND local_id = $2',
+        [req.params.id, req.usuario.local_id]
+      );
+      if (usuario.rows.length === 0) {
+        return res.status(403).json({ error: 'Sin permiso' });
+      }
+      if (usuario.rows[0].rol !== 'cajero') {
+        return res.status(403).json({ error: 'Solo podés borrar cajeros' });
+      }
+    }
+    await pool.query('DELETE FROM usuarios WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
