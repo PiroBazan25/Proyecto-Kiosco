@@ -59,14 +59,8 @@ router.post('/', verificarToken, async (req, res) => {
       'INSERT INTO locales (nombre, direccion, telefono, plan, suscripcion_vence) VALUES ($1,$2,$3,$4,$5) RETURNING *',
       [nombre, direccion, telefono, plan || 'basico', vence]
     );
-    await enviarCredenciales({ 
-    nombre: dueno.nombre, 
-    email: dueno.email, 
-    pin: dueno.pin, 
-    localNombre: local.nombre, 
-    rol: 'admin_local' 
-      });
     const local = localResult.rows[0];
+
     if (dueno) {
       const bcrypt = require('bcryptjs');
       const pinHash = await bcrypt.hash(dueno.pin, 10);
@@ -74,7 +68,15 @@ router.post('/', verificarToken, async (req, res) => {
         'INSERT INTO usuarios (local_id, nombre, email, pin_hash, rol) VALUES ($1,$2,$3,$4,$5)',
         [local.id, dueno.nombre, dueno.email, pinHash, 'admin_local']
       );
+      await enviarCredenciales({ 
+        nombre: dueno.nombre, 
+        email: dueno.email, 
+        pin: dueno.pin, 
+        localNombre: local.nombre, 
+        rol: 'admin_local' 
+      });
     }
+
     await client.query('COMMIT');
     res.json(local);
   } catch (err) {

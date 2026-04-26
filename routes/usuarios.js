@@ -25,7 +25,7 @@ router.get('/', verificarToken, async (req, res) => {
 });
 
 // POST - Crear usuario
-rrouter.post('/', verificarToken, async (req, res) => {
+router.post('/', verificarToken, async (req, res) => {
   if (!['admin_local', 'superadmin'].includes(req.usuario.rol)) {
     return res.status(403).json({ error: 'Sin permiso' });
   }
