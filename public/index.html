@@ -731,27 +731,40 @@ function imprimirTicket(venta) {
   }
 }
 function horaAR(fechaStr) {
-  const d = new Date(fechaStr);
-  return d.toLocaleTimeString('es-AR', { 
-    timeZone: 'America/Argentina/Buenos_Aires',
-    hour: '2-digit', 
-    minute: '2-digit', 
-    hour12: false 
-  });
+  try {
+    const d = new Date(fechaStr);
+    if (isNaN(d.getTime())) return fechaStr;
+    const ar = new Date(d.getTime() - (3 * 60 * 60 * 1000));
+    return ar.toLocaleTimeString('es-AR', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      hour12: false 
+    });
+  } catch(e) {
+    return fechaStr;
+  }
 }
 
 function fechaHoraAR(fechaStr) {
-  const d = new Date(fechaStr);
-  return d.toLocaleString('es-AR', { 
-    timeZone: 'America/Argentina/Buenos_Aires',
-    hour12: false,
-    day: '2-digit',
-    month: '2-digit', 
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  try {
+    const d = new Date(fechaStr);
+    if (isNaN(d.getTime())) return fechaStr;
+    const ar = new Date(d.getTime() - (3 * 60 * 60 * 1000));
+    return ar.toLocaleString('es-AR', { 
+      hour12: false,
+      day: '2-digit',
+      month: '2-digit', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch(e) {
+    return fechaStr;
+  }
 }
+
+
+
 
 // ==================== VENTAS ====================
 async function renderVentas() {
@@ -954,7 +967,7 @@ const body = {
 }
 
 // ==================== STOCK ====================
-async function renderStock() {
+  async function renderStock() {
   await cargarProductos();
   const prods = productosCache;
   const bajos = prods.filter(p => p.stock <= p.stock_min);
