@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../db');
 const bcrypt = require('bcryptjs');
 const verificarToken = require('../middleware/auth');
+const { enviarCredenciales } = require('../utils/email');
 
 // GET - Listar usuarios del local
 router.get('/', verificarToken, async (req, res) => {
@@ -24,7 +25,7 @@ router.get('/', verificarToken, async (req, res) => {
 });
 
 // POST - Crear usuario
-router.post('/', verificarToken, async (req, res) => {
+rrouter.post('/', verificarToken, async (req, res) => {
   if (!['admin_local', 'superadmin'].includes(req.usuario.rol)) {
     return res.status(403).json({ error: 'Sin permiso' });
   }
@@ -32,10 +33,17 @@ router.post('/', verificarToken, async (req, res) => {
   try {
     const pinHash = await bcrypt.hash(pin, 10);
     const localId = req.usuario.rol === 'superadmin' ? local_id : req.usuario.local_id;
+    
     const result = await pool.query(
       'INSERT INTO usuarios (local_id, nombre, email, pin_hash, rol) VALUES ($1,$2,$3,$4,$5) RETURNING id, nombre, email, rol, activo',
       [localId, nombre, email, pinHash, rol]
     );
+
+    const localResult = await pool.query('SELECT nombre FROM locales WHERE id = $1', [localId]);
+    const localNombre = localResult.rows[0]?.nombre || 'KioscoManager';
+
+    await enviarCredenciales({ nombre, email, pin, localNombre, rol });
+
     res.json(result.rows[0]);
   } catch (err) {
     if (err.code === '23505') {

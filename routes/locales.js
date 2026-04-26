@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const verificarToken = require('../middleware/auth');
+const { enviarCredenciales } = require('../utils/email');
 
 // GET config del local (ANTES de /:id)
 router.get('/config', verificarToken, async (req, res) => {
@@ -58,6 +59,13 @@ router.post('/', verificarToken, async (req, res) => {
       'INSERT INTO locales (nombre, direccion, telefono, plan, suscripcion_vence) VALUES ($1,$2,$3,$4,$5) RETURNING *',
       [nombre, direccion, telefono, plan || 'basico', vence]
     );
+    await enviarCredenciales({ 
+    nombre: dueno.nombre, 
+    email: dueno.email, 
+    pin: dueno.pin, 
+    localNombre: local.nombre, 
+    rol: 'admin_local' 
+      });
     const local = localResult.rows[0];
     if (dueno) {
       const bcrypt = require('bcryptjs');
