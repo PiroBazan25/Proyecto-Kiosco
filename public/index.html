@@ -428,7 +428,7 @@ function renderPOS() {
   if (!currentLocal) { document.getElementById('main-content').innerHTML = '<div class="card">⚠️ No hay local seleccionado</div>'; return; }
   const prods = productosCache || [];
   const cfgDesc = currentLocal?.config?.descuentos;
-  document.getElementById('topbar-actions').innerHTML = `<input class="inp" id="buscar-pos" placeholder="🔍 Buscar producto..." style="width:200px" oninput="filterProducts(this.value)">`;
+  document.getElementById('topbar-actions').innerHTML = `<div style="display:flex;gap:8px;align-items:center"><input class="inp" id="buscar-pos" placeholder="🔍 Buscar o escanear código..." style="width:250px" oninput="filterProducts(this.value)"><button class="btn btn-sm btn-primary" onclick="document.getElementById('buscar-pos').focus();document.getElementById('buscar-pos').value='';toast('Listo para escanear 📷', 'success')">📷 Escanear</button></div>`;
   document.getElementById('main-content').innerHTML = `
     <div class="pos-container">
       <div>
