@@ -1283,6 +1283,7 @@ async function renderLocales() {
                   <button class="btn btn-sm" onclick="toggleSuscripcion(${l.id}, ${l.suscripcion_activa})">${l.suscripcion_activa?'⛔ Desactivar':'✅ Activar'}</button>
                   <button class="btn btn-sm" onclick="modalLocal(${l.id}, ${JSON.stringify(l).replace(/"/g, '&quot;')})">✏️</button>
                   <button class="btn btn-sm btn-primary" onclick="verUsuariosLocal(${l.id}, '${l.nombre}')">👥 Usuarios</button>
+                  <button class="btn btn-sm btn-danger" onclick="borrarLocal(${l.id}, '${l.nombre}')">🗑️ Borrar</button>
                 </td>
               </tr>`).join('')}
           </tbody>
@@ -2066,7 +2067,7 @@ function beep(tipo = 'cobrar') {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.6);
-  } else if (tipo === 'salir') {
+   } else if (tipo === 'salir') {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(800, ctx.currentTime);
     osc.frequency.setValueAtTime(600, ctx.currentTime + 0.15);
@@ -2076,6 +2077,7 @@ function beep(tipo = 'cobrar') {
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.5);
   }
+}  // ← cierre de beep
   async function borrarUsuario(id, nombre) {
   const ok = await confirmarAccion(`¿Borrar al usuario ${nombre}? Esta acción no se puede deshacer.`);
   if (!ok) return;
@@ -2111,8 +2113,6 @@ async function borrarLocal(id, nombre) {
   }
 }
   
-  
-}
 </script>
 </body>
 </html>
