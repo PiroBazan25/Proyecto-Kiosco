@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const { iniciarCron } = require('./utils/cron');
 require('dotenv').config();
 require('./db');
 
@@ -25,6 +26,7 @@ app.get('/api/ping', (req, res) => {
 });
 
 const PORT = process.env.PORT || 8080;
+iniciarCron();
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
