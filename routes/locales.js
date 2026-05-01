@@ -176,6 +176,20 @@ router.delete('/:id', verificarToken, async (req, res) => {
   } finally {
     client.release();
   }
+  router.put('/mp-token', verificarToken, async (req, res) => {
+  if (req.usuario.rol !== 'admin_local') {
+    return res.status(403).json({ error: 'Sin permiso' });
+  }
+  try {
+    await pool.query(
+      'UPDATE locales SET mp_access_token = $1 WHERE id = $2',
+      [req.body.token, req.usuario.local_id]
+    );
+    res.json({ ok: true });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 });
 
 module.exports = router;

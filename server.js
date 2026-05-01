@@ -1,3 +1,6 @@
+require('dotenv').config(); // 👈 SIEMPRE PRIMERO
+
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -10,6 +13,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/api/pagos', require('./routes/pagos'));
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/productos', require('./routes/productos'));

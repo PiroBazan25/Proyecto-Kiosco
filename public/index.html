@@ -435,6 +435,7 @@ function renderPOS() {
         <div class="product-grid" id="product-grid-pos"></div>
       </div>
       <div class="card" style="display:flex;flex-direction:column">
+        <button class="btn btn-sm ${selectedPayment==='mercadopago'?'btn-primary':''}" onclick="cobrarConMP()">💳 MP</button>
         <div style="font-weight:600;margin-bottom:12px">🧾 Ticket de compra</div>
         <div id="ticket-items" style="min-height:200px;max-height:400px;overflow:auto"></div>
         <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px">
@@ -1201,6 +1202,16 @@ function renderConfig() {
         <div class="card-title">🧾 Mensaje en ticket</div>
         <textarea class="inp" id="cfg-mensaje" rows="3" style="margin-bottom:12px">${cfg.mensajeTicket||''}</textarea>
         <button class="btn btn-primary" onclick="guardarMensajeTicket()">Guardar mensaje</button>
+      </div>
+       <div class="card">
+        <div class="card-title">💳 MercadoPago</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+          Pegá tu Access Token de MercadoPago para habilitar cobros con QR.
+          Lo encontrás en <a href="https://www.mercadopago.com.ar/developers/panel" target="_blank">mercadopago.com.ar/developers</a>
+        </p>
+        <div class="lbl">Access Token</div>
+        <input class="inp" id="mp-token" type="password" placeholder="APP_USR-..." style="margin-bottom:12px">
+        <button class="btn btn-primary" onclick="guardarMPToken()">Guardar token MP</button>
       </div>
       <div class="card" style="border-color:var(--danger)">
         <div class="card-title" style="color:var(--danger)">⚠️ Zona de peligro</div>
@@ -2111,6 +2122,64 @@ async function borrarLocal(id, nombre) {
   } catch(e) {
     toast('Error de conexión', 'error');
   }
+}
+// ==================== MERCADOPAGO ====================
+async function guardarMPToken() {
+  const token = document.getElementById('mp-token').value;
+  if (!token) { toast('Ingresá el token', 'error'); return; }
+  try {
+    const res = await fetch(`${API}/api/locales/mp-token`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ token })
+    });
+    if (!res.ok) { toast('Error al guardar token', 'error'); return; }
+    toast('✅ MercadoPago configurado correctamente', 'success');
+  } catch(e) { toast('Error de conexión', 'error'); }
+}
+
+async function cobrarConMP() {
+  if (currentTicket.length === 0) { toast('Agregá productos al ticket', 'error'); return; }
+  const subtotal = currentTicket.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  const descuento = calcularDescuento(subtotal);
+  const total = subtotal - descuento;
+
+  try {
+    const res = await fetch(`${API}/api/pagos/qr`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        items: currentTicket.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio })),
+        total
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Error al generar QR', 'error'); return; }
+
+    // Mostrar QR
+    document.getElementById('modal-root').innerHTML = `
+      <div class="modal-overlay">
+        <div class="modal" style="text-align:center;max-width:400px">
+          <h3 style="margin-bottom:8px">💳 Cobrar con MercadoPago</h3>
+          <p style="color:var(--muted);margin-bottom:16px">Total: <strong>$${total.toLocaleString('es-AR')}</strong></p>
+          <div style="margin-bottom:16px">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.init_point)}" 
+                 style="width:200px;height:200px;border:1px solid var(--border);border-radius:8px">
+          </div>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:16px">El cliente escanea el QR con la app de MercadoPago</p>
+          <div style="display:flex;gap:8px;justify-content:center">
+            <button class="btn" onclick="cerrarModal()">Cancelar</button>
+            <button class="btn btn-success" onclick="confirmarPagoMP('${data.preference_id}')">✅ Confirmar pago</button>
+          </div>
+        </div>
+      </div>`;
+  } catch(e) { toast('Error de conexión', 'error'); }
+}
+
+async function confirmarPagoMP(preferenceId) {
+  cerrarModal();
+  selectedPayment = 'mercadopago';
+  await confirmarPago();
 }
   
 </script>
