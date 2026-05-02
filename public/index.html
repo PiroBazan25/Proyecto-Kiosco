@@ -227,6 +227,10 @@ let descuentoActivo = false;
 let descuentoValor = 0;
 let productosCache = [];
 let turnoActual = null;
+let clientesCache = [];
+let proveedoresCache = [];
+let itemsCompra = [];
+
 
 function getToken() { return localStorage.getItem('km_token'); }
 function getHeaders() {
@@ -638,21 +642,64 @@ async function confirmarPago() {
     toast('Error de conexión', 'error');
   }
 }
-
 function imprimirTicket(venta) {
   const local = currentLocal;
-  const fecha = new Date().toLocaleString('es-AR');
+  const fecha = new Date().toLocaleString('es-AR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+    timeZone: 'America/Argentina/Buenos_Aires'
+  });
   
-  let html = `
+  let contenido = `
     <div style="text-align:center;margin-bottom:8px">
       <div style="font-size:16px;font-weight:bold">${local?.nombre || 'KioscoManager'}</div>
       ${local?.direccion ? `<div style="font-size:11px">${local.direccion}</div>` : ''}
       ${local?.telefono ? `<div style="font-size:11px">Tel: ${local.telefono}</div>` : ''}
-      <div style="font-size:11px">${fecha}</div>
-      <div style="font-size:11px">Ticket #${venta.numero_ticket || venta.id}</div>
+      <div style="font-size:11px">${fecha} hs</div>
     </div>
     <div style="border-top:1px dashed #000;margin:6px 0"></div>
   `;
+
+  (venta.items || []).forEach(i => {
+    const precio = parseFloat(i.precio || i.precio_unitario);
+    const subtotal = precio * i.cantidad;
+    contenido += `
+      <div style="margin-bottom:4px">
+        <div>${i.nombre || i.nombre_producto}</div>
+        <div style="display:flex;justify-content:space-between;font-size:12px">
+          <span>${i.cantidad} x $${precio.toLocaleString('es-AR')}</span>
+          <span>$${subtotal.toLocaleString('es-AR')}</span>
+        </div>
+      </div>`;
+  });
+
+  contenido += `
+    <div style="border-top:1px dashed #000;margin:6px 0"></div>
+    <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px">
+      <span>TOTAL:</span>
+      <span>$${parseFloat(venta.total).toLocaleString('es-AR')}</span>
+    </div>
+    <div style="text-align:center;margin-top:10px;font-size:11px">¡Gracias por su compra!</div>
+  `;
+
+  const win = window.open('', '', 'width=400,height=600');
+  
+  // Usamos concatenación simple para evitar el error de la imagen anterior
+  win.document.write('<html><head><title>Ticket</title>');
+  win.document.write('<style>@page { size: auto; margin: 0mm; } body { margin: 10mm; font-family: sans-serif; width: 280px; }</style>');
+  win.document.write('</head><body>');
+  win.document.write(contenido);
+  win.document.write('</body></html>');
+  
+  win.document.close();
+
+  setTimeout(() => {
+    win.print();
+    win.close();
+  }, 300);
+}
+
+
 
   (venta.items || []).forEach(i => {
     const precio = parseFloat(i.precio || i.precio_unitario);
@@ -730,7 +777,7 @@ function imprimirTicket(venta) {
     `);
     win.document.close();
   }
-}
+
 function horaAR(fechaStr) {
   try {
     const d = new Date(fechaStr);
@@ -769,10 +816,12 @@ function fechaHoraAR(fechaStr) {
 
 // ==================== VENTAS ====================
 async function renderVentas() {
-  const hoy = new Date().toISOString().split('T')[0];
+  // Esto obtiene la fecha real de tu PC en formato YYYY-MM-DD
+  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+  
   const haceTreintaDias = new Date();
   haceTreintaDias.setDate(haceTreintaDias.getDate() - 30);
-  const desde30 = haceTreintaDias.toISOString().split('T')[0];
+  const desde30 = haceTreintaDias.toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
 
   document.getElementById('topbar-actions').innerHTML = `
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -810,62 +859,62 @@ async function buscarVentas(todo = false) {
     }
 
     // Agrupar por dia
-    const porDia = {};
-    ventas.forEach(v => {
-    const fecha = new Date(v.created_at).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });      if (!porDia[fecha]) porDia[fecha] = [];
-      porDia[fecha].push(v);
-    });
+ const porDia = {};
+  ventas.forEach(v => {
+    // Agrupación original por fecha local
+    const fecha = new Date(v.created_at).toLocaleDateString('en-CA'); 
+    if (!porDia[fecha]) porDia[fecha] = [];
+    porDia[fecha].push(v);
+  });
 
-    const totalGeneral = ventas.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+  const totalGeneral = ventas.reduce((s, v) => s + parseFloat(v.total || 0), 0);
 
-    let html = `
-      <div class="grid-3" style="margin-bottom:16px">
-        <div class="metric"><div class="metric-label">Total ventas</div><div class="metric-val">${ventas.length}</div></div>
-        <div class="metric"><div class="metric-label">Total facturado</div><div class="metric-val">$${totalGeneral.toLocaleString('es-AR')}</div></div>
-        <div class="metric"><div class="metric-label">Días con ventas</div><div class="metric-val">${Object.keys(porDia).length}</div></div>
-      </div>`;
+  let html = `
+    <div class="grid-3" style="margin-bottom:16px">
+      <div class="metric"><div class="metric-label">Total ventas</div><div class="metric-val">${ventas.length}</div></div>
+      <div class="metric"><div class="metric-label">Total facturado</div><div class="metric-val">$${totalGeneral.toLocaleString('es-AR')}</div></div>
+      <div class="metric"><div class="metric-label">Días con ventas</div><div class="metric-val">${Object.keys(porDia).length}</div></div>
+    </div>`;
 
-   Object.keys(porDia).sort((a, b) => b.localeCompare(a)).forEach(fecha => {
+  Object.keys(porDia).sort((a, b) => b.localeCompare(a)).forEach(fecha => {
     const ventasDia = porDia[fecha];
     const totalDia = ventasDia.reduce((s, v) => s + parseFloat(v.total || 0), 0);
-
-    // SOLUCIÓN: Usamos la fecha de creación de la primera venta del grupo
-    // Esto garantiza que el título coincida con los tickets de ese día
-    const fechaFormateada = new Date(ventasDia[0].created_at).toLocaleDateString('es-AR', {
-        weekday: 'long', 
-        day: 'numeric', 
-        month: 'long', 
-        year: 'numeric',
-        timeZone: 'America/Argentina/Buenos_Aires'
+    const fechaFormateada = new Date(fecha + 'T00:00:00').toLocaleDateString('es-AR', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     });
 
-      html += `
-        <div class="card" style="margin-bottom:12px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <div>
-              <div style="font-weight:500;font-size:15px">📅 ${fechaFormateada}</div>
-              <div style="font-size:12px;color:var(--muted)">${ventasDia.length} ventas — Total: <strong>$${totalDia.toLocaleString('es-AR')}</strong></div>
-            </div>
-            ${['admin_local', 'superadmin'].includes(currentUser?.rol) ? `
-            <button class="btn btn-sm btn-danger" onclick="borrarDia('${fecha}', '${fechaFormateada}')">🗑️ Borrar día</button>` : ''}
-          </div>
-          <table>
-            <thead><tr><th>Hora</th><th>Cajero</th><th>Productos</th><th>Desc.</th><th>Total</th><th>Método</th></tr></thead>
-            <tbody>
-              ${ventasDia.map(v => `
-                <tr>
-                  <td>${horaAR(v.created_at)}</td>
-                  <td>${v.cajero || '-'}</td>
-                  <td style="font-size:11px">${(v.items||[]).filter(i=>i.nombre).map(i=>`${i.nombre} x${i.cantidad}`).join(', ')}</td>
-                  <td>${parseFloat(v.descuento||0)>0?'-$'+parseFloat(v.descuento).toLocaleString('es-AR'):'-'}</td>
-                  <td><strong>$${parseFloat(v.total).toLocaleString('es-AR')}</strong></td>
-                  <td>${v.metodo_pago}</td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>`;
-    });
+    html += `
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <div style="font-weight:600;font-size:16px;text-transform:capitalize">📅 ${fechaFormateada}</div>
+          <div style="font-size:12px;color:var(--muted)">${ventasDia.length} ventas — Total: <strong>$${totalDia.toLocaleString('es-AR')}</strong></div>
+        </div>
+        <button class="btn btn-sm btn-danger" onclick="borrarDia('${fecha}')">Borrar día</button>
+      </div>
+      <table class="table">
+        <thead><tr><th>Hora</th><th>Cajero</th><th>Productos</th><th>Desc.</th><th>Total</th><th>Método</th></tr></thead>
+        <tbody>
+          ${ventasDia.map(v => `
+            <tr>
+              <td>${new Date(v.created_at).toLocaleTimeString('es-AR', {
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    hour12: false, // <-- Esto fuerza el formato 24hs
+                    timeZone: 'America/Argentina/Buenos_Aires'
+              })}</td>
+              <td>${v.cajero || '-'}</td>
+              <td style="font-size:11px">${(v.items || []).filter(i=>i.nombre).map(i=>`${i.nombre} x${i.cantidad}`).join(', ')}</td>
+              <td>${parseFloat(v.descuento||0)>0 ? '-$'+parseFloat(v.descuento).toLocaleString('es-AR') : '-'}</td>
+              <td><strong>$${parseFloat(v.total).toLocaleString('es-AR')}</strong></td>
+              <td>${v.metodo_pago}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  });
 
+  document.getElementById('main-content').innerHTML = html;
     document.getElementById('main-content').innerHTML = html;
 
   } catch(e) {
@@ -1026,6 +1075,7 @@ async function renderProveedores() {
         </table>`}
       </div>`;
   } catch(e) {
+    console.error('Error proveedores:', e);
     toast('Error cargando proveedores', 'error');
   }
 }
@@ -1727,7 +1777,7 @@ async function guardarConfigAPI() {
   } catch(e) { console.error('Error guardando config:', e); }
 }
 // ==================== CLIENTES Y FIADO ====================
-let clientesCache = [];
+
 
 async function renderClientes() {
   document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="modalCliente()">+ Nuevo cliente</button>`;
@@ -1765,6 +1815,7 @@ async function renderClientes() {
         </table>`}
       </div>`;
   } catch(e) {
+    console.error('Error clientes:', e);
     toast('Error cargando clientes', 'error');
   }
 }
@@ -1864,8 +1915,6 @@ async function registrarPago(clienteId) {
   } catch(e) { toast('Error de conexión', 'error'); }
 }
 // ==================== COMPRAS ====================
-let proveedoresCache = [];
-let itemsCompra = [];
 
 async function renderCompras() {
   document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="modalCompra()">+ Nueva compra</button>`;
