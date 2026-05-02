@@ -70,11 +70,11 @@ router.get('/', verificarToken, async (req, res) => {
 
     if (desde) {
       params.push(desde);
-      query += ` AND DATE(v.created_at) >= $${params.length}`;
+      query += ` AND DATE(v.created_at AT TIME ZONE 'America/Argentina/Buenos_Aires') >= $${params.length}`;
     }
     if (hasta) {
       params.push(hasta);
-      query += ` AND DATE(v.created_at) <= $${params.length}`;
+      query += ` AND DATE(v.created_at AT TIME ZONE 'America/Argentina/Buenos_Aires') <= $${params.length}`;
     }
 
     query += ` GROUP BY v.id, u.nombre ORDER BY v.created_at DESC`;

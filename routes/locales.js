@@ -4,7 +4,9 @@ const pool = require('../db');
 const verificarToken = require('../middleware/auth');
 const { enviarCredenciales } = require('../utils/email');
 
-// GET config del local (ANTES de /:id)
+// --- RUTAS ESPECÍFICAS (SIEMPRE ARRIBA) ---
+
+// GET config del local
 router.get('/config', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(
@@ -17,7 +19,7 @@ router.get('/config', verificarToken, async (req, res) => {
   }
 });
 
-// PUT config del local (ANTES de /:id)
+// PUT config del local
 router.put('/config', verificarToken, async (req, res) => {
   if (!['admin_local', 'superadmin'].includes(req.usuario.rol)) {
     return res.status(403).json({ error: 'Sin permiso' });
@@ -33,7 +35,26 @@ router.put('/config', verificarToken, async (req, res) => {
   }
 });
 
-// GET - Listar todos los locales (solo superadmin)
+// ✅ NUEVA RUTA MP-TOKEN (Ubicación correcta)
+router.put('/mp-token', verificarToken, async (req, res) => {
+  // Nota: Permitimos admin_local y superadmin por seguridad
+  if (!['admin_local', 'superadmin'].includes(req.usuario.rol)) {
+    return res.status(403).json({ error: 'Sin permiso' });
+  }
+  try {
+    await pool.query(
+      'UPDATE locales SET mp_access_token = $1 WHERE id = $2',
+      [req.body.token, req.usuario.local_id]
+    );
+    res.json({ ok: true });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- RUTAS GENERALES ---
+
+// GET - Listar todos los locales
 router.get('/', verificarToken, async (req, res) => {
   if (req.usuario.rol !== 'superadmin') {
     return res.status(403).json({ error: 'Sin permiso' });
@@ -91,6 +112,8 @@ router.post('/', verificarToken, async (req, res) => {
   }
 });
 
+// --- RUTAS CON PARÁMETROS DINÁMICOS (AL FINAL) ---
+
 // PUT - Activar/desactivar suscripción
 router.put('/:id/suscripcion', verificarToken, async (req, res) => {
   if (req.usuario.rol !== 'superadmin') {
@@ -125,26 +148,6 @@ router.put('/:id', verificarToken, async (req, res) => {
   }
 });
 
-// GET usuarios de un local especifico (solo superadmin)
-router.get('/:id/usuarios', verificarToken, async (req, res) => {
-  if (req.usuario.rol !== 'superadmin') {
-    return res.status(403).json({ error: 'Sin permiso' });
-  }
-  try {
-    const result = await pool.query(
-      `SELECT u.id, u.nombre, u.email, u.rol, u.activo, l.nombre as local_nombre
-       FROM usuarios u
-       LEFT JOIN locales l ON u.local_id = l.id
-       WHERE u.local_id = $1
-       ORDER BY u.rol, u.nombre`,
-      [req.params.id]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // DELETE - Borrar local completo
 router.delete('/:id', verificarToken, async (req, res) => {
   if (req.usuario.rol !== 'superadmin') {
@@ -155,7 +158,6 @@ router.delete('/:id', verificarToken, async (req, res) => {
     await client.query('BEGIN');
     const localId = req.params.id;
     
-    // Borrar en orden para respetar foreign keys
     await client.query('DELETE FROM venta_items WHERE venta_id IN (SELECT id FROM ventas WHERE local_id = $1)', [localId]);
     await client.query('DELETE FROM ventas WHERE local_id = $1', [localId]);
     await client.query('DELETE FROM compra_items WHERE compra_id IN (SELECT id FROM compras WHERE local_id = $1)', [localId]);
@@ -176,20 +178,6 @@ router.delete('/:id', verificarToken, async (req, res) => {
   } finally {
     client.release();
   }
-  router.put('/mp-token', verificarToken, async (req, res) => {
-  if (req.usuario.rol !== 'admin_local') {
-    return res.status(403).json({ error: 'Sin permiso' });
-  }
-  try {
-    await pool.query(
-      'UPDATE locales SET mp_access_token = $1 WHERE id = $2',
-      [req.body.token, req.usuario.local_id]
-    );
-    res.json({ ok: true });
-  } catch(err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 });
 
 module.exports = router;

@@ -769,21 +769,21 @@ function fechaHoraAR(fechaStr) {
 
 // ==================== VENTAS ====================
 async function renderVentas() {
+  const hoy = new Date().toISOString().split('T')[0];
+  const haceTreintaDias = new Date();
+  haceTreintaDias.setDate(haceTreintaDias.getDate() - 30);
+  const desde30 = haceTreintaDias.toISOString().split('T')[0];
+
   document.getElementById('topbar-actions').innerHTML = `
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <input type="date" class="inp" id="filtro-desde" style="width:140px">
-      <input type="date" class="inp" id="filtro-hasta" style="width:140px">
+      <input type="date" class="inp" id="filtro-desde" style="width:140px" value="${desde30}">
+      <input type="date" class="inp" id="filtro-hasta" style="width:140px" value="${hoy}">
       <button class="btn btn-primary" onclick="buscarVentas()">🔍 Buscar</button>
       <button class="btn" onclick="buscarVentas(true)">Ver todo</button>
     </div>`;
 
-  const hoy = new Date().toISOString().split('T')[0];
-  document.getElementById('filtro-desde').value = hoy;
-  document.getElementById('filtro-hasta').value = hoy;
-
   await buscarVentas();
 }
-
 async function buscarVentas(todo = false) {
   const desde = todo ? '' : document.getElementById('filtro-desde')?.value || '';
   const hasta = todo ? '' : document.getElementById('filtro-hasta')?.value || '';
@@ -812,8 +812,7 @@ async function buscarVentas(todo = false) {
     // Agrupar por dia
     const porDia = {};
     ventas.forEach(v => {
-      const fecha = new Date(v.created_at).toISOString().split('T')[0];
-      if (!porDia[fecha]) porDia[fecha] = [];
+    const fecha = new Date(v.created_at).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });      if (!porDia[fecha]) porDia[fecha] = [];
       porDia[fecha].push(v);
     });
 
@@ -843,7 +842,6 @@ async function buscarVentas(todo = false) {
             </div>
             ${['admin_local', 'superadmin'].includes(currentUser?.rol) ? `
             <button class="btn btn-sm btn-danger" onclick="borrarDia('${fecha}', '${fechaFormateada}')">🗑️ Borrar día</button>` : ''}
-            <button class="btn btn-sm btn-danger" onclick="borrarLocal(${l.id}, '${l.nombre}')">🗑️ Borrar</button>}
           </div>
           <table>
             <thead><tr><th>Hora</th><th>Cajero</th><th>Productos</th><th>Desc.</th><th>Total</th><th>Método</th></tr></thead>
@@ -865,6 +863,7 @@ async function buscarVentas(todo = false) {
     document.getElementById('main-content').innerHTML = html;
 
   } catch(e) {
+    console.error('Error ventas:', e);
     toast('Error cargando ventas', 'error');
   }
 }
