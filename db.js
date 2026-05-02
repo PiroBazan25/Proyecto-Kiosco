@@ -1,16 +1,14 @@
 const { Pool } = require('pg');
-console.log('DATABASE_URL:', process.env.DATABASE_URL);
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-pool.connect(async (err, client, release) => {
+pool.connect((err) => {
   if (err) {
     console.error('Error conectando a la base de datos:', err.message);
   } else {
-    await client.query("SET timezone='America/Argentina/Buenos_Aires'");
-    release();
     console.log('Conectado a Supabase correctamente');
   }
 });

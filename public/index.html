@@ -632,7 +632,8 @@ async function confirmarPago() {
     }
     beep('cobrar');
     toast('✅ Venta registrada correctamente', 'success');
-    imprimirTicket(data.venta);
+    console.log('Venta para ticket:', data.venta);
+    imprimirTicket({ ...data.venta, items: currentTicket.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio })) });
 
     currentTicket = []; descuentoActivo = false; descuentoValor = 0; calcValue = '0';
     renderPOS();
@@ -778,12 +779,13 @@ function imprimirTicket(venta) {
     win.document.close();
   }
 
-function horaAR(fechaStr) {
+
+  function horaAR(fechaStr) {
   try {
     const d = new Date(fechaStr);
     if (isNaN(d.getTime())) return fechaStr;
-    const ar = new Date(d.getTime() - (3 * 60 * 60 * 1000));
-    return ar.toLocaleTimeString('es-AR', { 
+    return d.toLocaleTimeString('es-AR', { 
+      timeZone: 'America/Argentina/Buenos_Aires',
       hour: '2-digit', 
       minute: '2-digit', 
       hour12: false 
@@ -793,12 +795,13 @@ function horaAR(fechaStr) {
   }
 }
 
+
 function fechaHoraAR(fechaStr) {
   try {
     const d = new Date(fechaStr);
     if (isNaN(d.getTime())) return fechaStr;
-    const ar = new Date(d.getTime() - (3 * 60 * 60 * 1000));
-    return ar.toLocaleString('es-AR', { 
+    return d.toLocaleString('es-AR', { 
+      timeZone: 'America/Argentina/Buenos_Aires',
       hour12: false,
       day: '2-digit',
       month: '2-digit', 
@@ -1624,8 +1627,7 @@ ${t.fecha_cierre ? '→ ' + fechaHoraAR(t.fecha_cierre) : '(en curso)'}
             <tbody>
               ${ventas.map(v => `
                 <tr>
-                  <td>${horaAR(v.created_at)}</td>
-                  <td style="font-size:11px">${(v.items||[]).map(i=>`${i.nombre_producto} x${i.cantidad}`).join(', ')}</td>
+                  <td>${new Date(v.created_at).toLocaleTimeString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', hour12: false })}</td>                  <td style="font-size:11px">${(v.items||[]).map(i=>`${i.nombre_producto} x${i.cantidad}`).join(', ')}</td>
                   <td>${v.metodo_pago}</td>
                   <td><strong>$${parseFloat(v.total).toLocaleString('es-AR')}</strong></td>
                 </tr>`).join('')}
