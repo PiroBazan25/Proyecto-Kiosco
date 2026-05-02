@@ -825,13 +825,19 @@ async function buscarVentas(todo = false) {
         <div class="metric"><div class="metric-label">Días con ventas</div><div class="metric-val">${Object.keys(porDia).length}</div></div>
       </div>`;
 
-    Object.keys(porDia).sort((a, b) => b.localeCompare(a)).forEach(fecha => {
-      const ventasDia = porDia[fecha];
-      const totalDia = ventasDia.reduce((s, v) => s + parseFloat(v.total || 0), 0);
-      const [anio, mes, dia] = fecha.split('-');
-      const fechaFormateada = new Date(anio, mes - 1, dia).toLocaleDateString('es-AR', {
-          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-          });
+   Object.keys(porDia).sort((a, b) => b.localeCompare(a)).forEach(fecha => {
+    const ventasDia = porDia[fecha];
+    const totalDia = ventasDia.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+
+    // SOLUCIÓN: Usamos la fecha de creación de la primera venta del grupo
+    // Esto garantiza que el título coincida con los tickets de ese día
+    const fechaFormateada = new Date(ventasDia[0].created_at).toLocaleDateString('es-AR', {
+        weekday: 'long', 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric',
+        timeZone: 'America/Argentina/Buenos_Aires'
+    });
 
       html += `
         <div class="card" style="margin-bottom:12px">
