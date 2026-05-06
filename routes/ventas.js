@@ -139,5 +139,32 @@ router.delete('/reset', verificarToken, async (req, res) => {
     client.release();
   }
 });
+router.delete('/reset-periodo', verificarToken, async (req, res) => {
+  if (!['admin_local', 'superadmin'].includes(req.usuario.rol)) {
+    return res.status(403).json({ error: 'Sin permiso' });
+  }
+  const { desde, hasta } = req.query;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const ventas = await client.query(
+      `SELECT id FROM ventas WHERE local_id = $1 
+       AND DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') BETWEEN $2 AND $3`,
+      [req.usuario.local_id, desde, hasta]
+    );
+    const ids = ventas.rows.map(v => v.id);
+    if (ids.length > 0) {
+      await client.query('DELETE FROM venta_items WHERE venta_id = ANY($1)', [ids]);
+      await client.query('DELETE FROM ventas WHERE id = ANY($1)', [ids]);
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true, eliminadas: ids.length });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
 
 module.exports = router;

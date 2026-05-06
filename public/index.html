@@ -1065,15 +1065,16 @@ async function renderProveedores() {
         <div class="card-title">🚚 Proveedores</div>
         ${proveedoresCache.length === 0 ? '<p style="color:var(--muted)">No hay proveedores registrados</p>' : `
         <table>
-          <thead><tr><th>Nombre</th><th>Contacto</th><th>Teléfono</th><th>Email</th></tr></thead>
-          <tbody>
-            ${proveedoresCache.map(p => `
-              <tr>
-                <td><strong>${p.nombre}</strong></td>
-                <td>${p.contacto||'-'}</td>
-                <td>${p.telefono||'-'}</td>
-                <td>${p.email||'-'}</td>
-              </tr>`).join('')}
+          <thead><tr><th>Nombre</th><th>Contacto</th><th>Teléfono</th><th>Email</th><th></th></tr></thead>
+  <tbody>
+    ${proveedoresCache.map(p => `
+      <tr>
+        <td><strong>${p.nombre}</strong></td>
+        <td>${p.contacto||'-'}</td>
+        <td>${p.telefono||'-'}</td>
+        <td>${p.email||'-'}</td>
+        <td><button class="btn btn-sm btn-danger" onclick="borrarProveedor(${p.id}, '${p.nombre}')">🗑️</button></td>
+      </tr>`).join('')}
           </tbody>
         </table>`}
       </div>`;
@@ -1644,113 +1645,145 @@ ${t.fecha_cierre ? '→ ' + fechaHoraAR(t.fecha_cierre) : '(en curso)'}
 }
 // ==================== REPORTES ====================
 async function renderReportes() {
+  const hoy = new Date().toISOString().split('T')[0];
+  const hace30 = new Date();
+  hace30.setDate(hace30.getDate() - 30);
+  const desde30 = hace30.toISOString().split('T')[0];
+
+  document.getElementById('topbar-actions').innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input type="date" class="inp" id="reporte-desde" style="width:140px" value="${desde30}">
+      <input type="date" class="inp" id="reporte-hasta" style="width:140px" value="${hoy}">
+      <button class="btn btn-primary" onclick="cargarReportes()">📊 Ver reporte</button>
+      <button class="btn btn-danger" onclick="resetearReportes()">🗑️ Resetear</button>
+    </div>`;
+
+  await cargarReportes();
+}
+
+async function cargarReportes() {
+  const desde = document.getElementById('reporte-desde')?.value || '';
+  const hasta = document.getElementById('reporte-hasta')?.value || '';
+  
   document.getElementById('main-content').innerHTML = '<div class="card">Cargando reportes...</div>';
+  
   try {
-    const res = await fetch(`${API}/api/reportes/dashboard`, { headers: getHeaders() });
+    let url = `${API}/api/reportes/dashboard`;
+    if (desde || hasta) url += `?desde=${desde}&hasta=${hasta}`;
+
+    const res = await fetch(url, { headers: getHeaders() });
     const data = await res.json();
     if (!res.ok) { toast('Error cargando reportes', 'error'); return; }
 
     document.getElementById('main-content').innerHTML = `
       <div class="grid-4" style="margin-bottom:16px">
         <div class="metric">
-          <div class="metric-label">Ventas hoy</div>
-          <div class="metric-val">${data.hoy.ventas}</div>
+          <div class="metric-label">Ventas período</div>
+          <div class="metric-val">${data.resumen.ventas}</div>
         </div>
         <div class="metric">
-          <div class="metric-label">Facturado hoy</div>
-          <div class="metric-val">$${data.hoy.total.toLocaleString('es-AR')}</div>
+          <div class="metric-label">Facturado</div>
+          <div class="metric-val">$${data.resumen.total.toLocaleString('es-AR')}</div>
         </div>
         <div class="metric">
-          <div class="metric-label">Ganancia hoy</div>
-          <div class="metric-val" style="color:var(--success)">$${data.hoy.ganancia.toLocaleString('es-AR')}</div>
+          <div class="metric-label">Ganancia</div>
+          <div class="metric-val" style="color:var(--success)">$${data.resumen.ganancia.toLocaleString('es-AR')}</div>
         </div>
         <div class="metric">
-          <div class="metric-label">Ganancia del mes</div>
-          <div class="metric-val" style="color:var(--success)">$${data.mes.ganancia.toLocaleString('es-AR')}</div>
+          <div class="metric-label">Descuentos</div>
+          <div class="metric-val" style="color:var(--accent3)">$${data.resumen.descuentos.toLocaleString('es-AR')}</div>
         </div>
       </div>
       <div class="grid-2" style="margin-bottom:16px">
         <div class="card">
-          <div class="card-title">📈 Ventas últimos 7 días</div>
+          <div class="card-title">📈 Ventas por día</div>
           <canvas id="chart-ventas" height="200"></canvas>
         </div>
         <div class="card">
-          <div class="card-title">💳 Métodos de pago hoy</div>
+          <div class="card-title">💳 Métodos de pago</div>
           <canvas id="chart-pagos" height="200"></canvas>
         </div>
       </div>
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">🏆 Top 5 productos (30 días)</div>
-          <table>
-            <thead><tr><th>Producto</th><th>Vendidos</th><th>Total</th><th>Ganancia</th></tr></thead>
-            <tbody>
-              ${data.topProductos.map(p => `
-                <tr>
-                  <td>${p.nombre_producto}</td>
-                  <td>${p.cantidad_vendida}</td>
-                  <td>$${parseFloat(p.total_vendido).toLocaleString('es-AR')}</td>
-                  <td style="color:var(--success)">$${parseFloat(p.ganancia).toLocaleString('es-AR')}</td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-        <div class="card">
-          <div class="card-title">💰 Resumen del mes</div>
-          <div class="metric" style="margin-bottom:12px">
-            <div class="metric-label">Total facturado</div>
-            <div class="metric-val">$${data.mes.total.toLocaleString('es-AR')}</div>
-          </div>
-          <div class="metric" style="margin-bottom:12px">
-            <div class="metric-label">Ganancia neta</div>
-            <div class="metric-val" style="color:var(--success)">$${data.mes.ganancia.toLocaleString('es-AR')}</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">Descuentos otorgados hoy</div>
-            <div class="metric-val" style="color:var(--accent3)">$${data.hoy.descuentos.toLocaleString('es-AR')}</div>
-          </div>
-        </div>
-      </div>
-    `;
+      <div class="card">
+        <div class="card-title">🏆 Top 5 productos</div>
+        ${data.topProductos.length === 0 ? '<p style="color:var(--muted)">No hay ventas en este período</p>' : `
+        <table>
+          <thead><tr><th>Producto</th><th>Vendidos</th><th>Total</th><th>Ganancia</th></tr></thead>
+          <tbody>
+            ${data.topProductos.map(p => `
+              <tr>
+                <td>${p.nombre_producto}</td>
+                <td>${p.cantidad_vendida}</td>
+                <td>$${parseFloat(p.total_vendido).toLocaleString('es-AR')}</td>
+                <td style="color:var(--success)">$${parseFloat(p.ganancia).toLocaleString('es-AR')}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`}
+      </div>`;
 
-    const ctxVentas = document.getElementById('chart-ventas').getContext('2d');
-    new Chart(ctxVentas, {
-      type: 'bar',
-      data: {
-        labels: data.ventasPorDia.map(v => new Date(v.fecha).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' })),
-        datasets: [{
-          label: 'Total vendido',
-          data: data.ventasPorDia.map(v => parseFloat(v.total)),
-          backgroundColor: '#3b82f6',
-          borderRadius: 6
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } }
-      }
-    });
+    if (data.ventasPorDia.length > 0) {
+      const ctxVentas = document.getElementById('chart-ventas').getContext('2d');
+      new Chart(ctxVentas, {
+        type: 'bar',
+        data: {
+          labels: data.ventasPorDia.map(v => {
+            const [a, m, d] = v.fecha.split('-');
+            return new Date(a, m-1, d).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
+          }),
+          datasets: [{
+            label: 'Total vendido',
+            data: data.ventasPorDia.map(v => parseFloat(v.total)),
+            backgroundColor: '#3b82f6',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
 
-    const ctxPagos = document.getElementById('chart-pagos').getContext('2d');
-    new Chart(ctxPagos, {
-      type: 'doughnut',
-      data: {
-        labels: data.metodosPago.map(m => m.metodo_pago),
-        datasets: [{
-          data: data.metodosPago.map(m => parseFloat(m.total)),
-          backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { position: 'bottom' } }
-      }
-    });
+    if (data.metodosPago.length > 0) {
+      const ctxPagos = document.getElementById('chart-pagos').getContext('2d');
+      new Chart(ctxPagos, {
+        type: 'doughnut',
+        data: {
+          labels: data.metodosPago.map(m => m.metodo_pago),
+          datasets: [{
+            data: data.metodosPago.map(m => parseFloat(m.total)),
+            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+    }
 
   } catch(e) {
     toast('Error cargando reportes', 'error');
   }
+}
+
+async function resetearReportes() {
+  const ok = await confirmarAccion('¿Resetear los reportes del período seleccionado? Esto borrará las ventas de esas fechas.');
+  if (!ok) return;
+  const desde = document.getElementById('reporte-desde')?.value;
+  const hasta = document.getElementById('reporte-hasta')?.value;
+  if (!desde || !hasta) { toast('Seleccioná un período', 'error'); return; }
+  try {
+    const res = await fetch(`${API}/api/ventas/reset-periodo?desde=${desde}&hasta=${hasta}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!res.ok) { toast('Error al resetear', 'error'); return; }
+    beep('reset');
+    toast('✅ Reportes reseteados', 'success');
+    cargarReportes();
+  } catch(e) { toast('Error de conexión', 'error'); }
 }
 // ==================== CONFIG PERSISTENTE ====================
 async function cargarConfig() {
@@ -1810,7 +1843,8 @@ async function renderClientes() {
                 <td style="display:flex;gap:4px">
                   <button class="btn btn-sm" onclick="modalCliente(${c.id})">✏️</button>
                   <button class="btn btn-sm btn-warning" onclick="modalFiado(${c.id})">💳 Fiado</button>
-                  ${parseFloat(c.deuda)>0?`<button class="btn btn-sm btn-success" onclick="registrarPago(${c.id})">💰 Pagar</button>`:''}
+  ${parseFloat(c.deuda)>0?`<button class="btn btn-sm btn-success" onclick="registrarPago(${c.id})">💰 Pagar</button>`:''}
+                  <button class="btn btn-sm btn-danger" onclick="borrarCliente(${c.id}, '${c.nombre}')">🗑️</button>
                 </td>
               </tr>`).join('')}
           </tbody>
@@ -2236,6 +2270,20 @@ async function confirmarPagoMP(preferenceId) {
   cerrarModal();
   selectedPayment = 'mercadopago';
   await confirmarPago();
+}
+async function borrarCliente(id, nombre) {
+  const ok = await confirmarAccion(`¿Borrar al cliente ${nombre}? Se borrará también su historial de fiado.`);
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API}/api/clientes/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!res.ok) { toast('Error al borrar cliente', 'error'); return; }
+    beep('reset');
+    toast('✅ Cliente borrado', 'success');
+    renderClientes();
+  } catch(e) { toast('Error de conexión', 'error'); }
 }
   
 </script>

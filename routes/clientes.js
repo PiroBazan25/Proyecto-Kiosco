@@ -108,4 +108,15 @@ router.get('/:id/fiado', verificarToken, async (req, res) => {
   }
 });
 
+router.delete('/:id', verificarToken, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM fiado WHERE cliente_id = $1', [req.params.id]);
+    await pool.query('DELETE FROM clientes WHERE id = $1 AND local_id = $2', 
+      [req.params.id, req.usuario.local_id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
