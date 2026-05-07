@@ -526,7 +526,7 @@ function renderProductGrid(prods) {
   if (!grid) return;
   if (prods.length === 0) { grid.innerHTML = '<div style="color:var(--muted);grid-column:1/-1;text-align:center;padding:20px">No hay productos</div>'; return; }
   grid.innerHTML = prods.map(p => `
-    <div class="prod-card" onclick="addToTicket(${p.id})">
+    <div class="prod-card" onclick='addToTicket(${JSON.stringify(p.id)})'>
       <div class="name">${p.nombre}</div>
       <div class="price">$${parseFloat(p.precio).toLocaleString('es-AR')}</div>
       <div class="stock">Stock: ${p.stock}</div>
@@ -639,6 +639,7 @@ async function confirmarPago() {
     renderPOS();
 
   } catch(err) {
+    console.error('Error cobrando:', err);
     beep('error');
     toast('Error de conexión', 'error');
   }
@@ -683,7 +684,15 @@ function imprimirTicket(venta) {
     <div style="text-align:center;margin-top:10px;font-size:11px">¡Gracias por su compra!</div>
   `;
 
-  const win = window.open('', '', 'width=400,height=600');
+  const printArea = document.getElementById('print-area');
+  printArea.innerHTML = contenido;
+  printArea.style.display = 'block';
+  window.print();
+  setTimeout(() => {
+    printArea.innerHTML = '';
+    printArea.style.display = 'none';
+  }, 300);
+  return;
   
   // Usamos concatenación simple para evitar el error de la imagen anterior
   win.document.write('<html><head><title>Ticket</title>');
@@ -699,9 +708,7 @@ function imprimirTicket(venta) {
     win.close();
   }, 300);
 }
-
-
-
+/*
   (venta.items || []).forEach(i => {
     const precio = parseFloat(i.precio || i.precio_unitario);
     const subtotal = precio * i.cantidad;
@@ -779,7 +786,7 @@ function imprimirTicket(venta) {
     win.document.close();
   }
 
-
+*/
   function horaAR(fechaStr) {
   try {
     const d = new Date(fechaStr);
@@ -851,6 +858,14 @@ async function buscarVentas(todo = false) {
 
     const res = await fetch(url, { headers: getHeaders() });
     const ventas = await res.json();
+    if (!res.ok) {
+      toast(ventas.error || 'Error cargando ventas', 'error');
+      return;
+    }
+    if (!Array.isArray(ventas)) {
+      toast('Respuesta invalida al cargar ventas', 'error');
+      return;
+    }
 
     if (ventas.length === 0) {
       document.getElementById('main-content').innerHTML = `
@@ -1661,6 +1676,26 @@ async function renderReportes() {
   await cargarReportes();
 }
 
+function formatearFechaCorta(fecha) {
+  if (!fecha) return '-';
+  const texto = String(fecha);
+  const match = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const [, anio, mes, dia] = match;
+    return new Date(Number(anio), Number(mes) - 1, Number(dia)).toLocaleDateString('es-AR', {
+      day: 'numeric',
+      month: 'short'
+    });
+  }
+  const date = new Date(texto);
+  if (isNaN(date.getTime())) return texto;
+  return date.toLocaleDateString('es-AR', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'America/Argentina/Buenos_Aires'
+  });
+}
+
 async function cargarReportes() {
   const desde = document.getElementById('reporte-desde')?.value || '';
   const hasta = document.getElementById('reporte-hasta')?.value || '';
@@ -1726,10 +1761,7 @@ async function cargarReportes() {
       new Chart(ctxVentas, {
         type: 'bar',
         data: {
-          labels: data.ventasPorDia.map(v => {
-            const [a, m, d] = v.fecha.split('-');
-            return new Date(a, m-1, d).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
-          }),
+          labels: data.ventasPorDia.map(v => formatearFechaCorta(v.fecha)),
           datasets: [{
             label: 'Total vendido',
             data: data.ventasPorDia.map(v => parseFloat(v.total)),
@@ -2213,6 +2245,23 @@ async function borrarLocal(id, nombre) {
     toast('Error de conexión', 'error');
   }
 }
+async function borrarProveedor(id, nombre) {
+  const ok = await confirmarAccion(`Borrar al proveedor ${nombre}?`);
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API}/api/compras/proveedores/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!res.ok) { toast('Error al borrar proveedor', 'error'); return; }
+    beep('reset');
+    toast('Proveedor borrado', 'success');
+    renderProveedores();
+  } catch(e) {
+    toast('Error de conexion', 'error');
+  }
+}
+
 // ==================== MERCADOPAGO ====================
 async function guardarMPToken() {
   const token = document.getElementById('mp-token').value;

@@ -5,11 +5,12 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-pool.connect((err) => {
+pool.connect((err, client, release) => {
   if (err) {
     console.error('Error conectando a la base de datos:', err.message);
   } else {
     console.log('Conectado a Supabase correctamente');
+    release();
   }
 });
 

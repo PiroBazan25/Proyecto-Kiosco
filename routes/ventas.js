@@ -5,7 +5,18 @@ const verificarToken = require('../middleware/auth');
 
 // POST - Registrar venta
 router.post('/', verificarToken, async (req, res) => {
-  const { items, subtotal, descuento, total, metodo_pago, cuotas } = req.body;
+  const { items, descuento, metodo_pago, cuotas } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Agregá productos a la venta' });
+  }
+  const descuentoNumero = Number(descuento || 0);
+  if (!Number.isFinite(descuentoNumero) || descuentoNumero < 0) {
+    return res.status(400).json({ error: 'Descuento inválido' });
+  }
+  const cuotasNumero = Number(cuotas || 1);
+  if (!Number.isInteger(cuotasNumero) || cuotasNumero < 1) {
+    return res.status(400).json({ error: 'Cuotas inválidas' });
+  }
   const client = await pool.connect();
 
   try {
@@ -13,35 +24,80 @@ router.post('/', verificarToken, async (req, res) => {
 
     // Crear la venta
     const turnoActivo = await client.query(
-  'SELECT id FROM turnos WHERE usuario_id = $1 AND estado = $2',
-  [req.usuario.id, 'abierto']
-);
-const turnoId = turnoActivo.rows[0]?.id || null;
+      'SELECT id FROM turnos WHERE usuario_id = $1 AND local_id = $2 AND estado = $3',
+      [req.usuario.id, req.usuario.local_id, 'abierto']
+    );
+    const turnoId = turnoActivo.rows[0]?.id || null;
 
-const ventaResult = await client.query(
-  'INSERT INTO ventas (local_id, usuario_id, subtotal, descuento, total, metodo_pago, cuotas, turno_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
-  [req.usuario.local_id, req.usuario.id, subtotal, descuento || 0, total, metodo_pago, cuotas || 1, turnoId]
-);
+    const itemsVenta = [];
+    let subtotalCalculado = 0;
+
+    for (const item of items) {
+      const productoId = item.id || item.producto_id;
+      const cantidad = Number(item.cantidad);
+      if (!productoId || !Number.isFinite(cantidad) || cantidad <= 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Item inválido' });
+      }
+
+      const productoResult = await client.query(
+        'SELECT id, nombre, precio, stock FROM productos WHERE id = $1 AND local_id = $2 AND activo = true FOR UPDATE',
+        [productoId, req.usuario.local_id]
+      );
+      const producto = productoResult.rows[0];
+      if (!producto) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Producto no encontrado' });
+      }
+      if (Number(producto.stock) < cantidad) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `Stock insuficiente para ${producto.nombre}` });
+      }
+
+      const precio = Number(producto.precio);
+      const subtotalItem = precio * cantidad;
+      subtotalCalculado += subtotalItem;
+      itemsVenta.push({
+        id: producto.id,
+        nombre: producto.nombre,
+        precio,
+        cantidad,
+        subtotal: subtotalItem
+      });
+    }
+
+    if (descuentoNumero > subtotalCalculado) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'El descuento no puede superar el subtotal' });
+    }
+
+    const totalCalculado = subtotalCalculado - descuentoNumero;
+
+    const ventaResult = await client.query(
+      'INSERT INTO ventas (local_id, usuario_id, subtotal, descuento, total, metodo_pago, cuotas, turno_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
+      [req.usuario.local_id, req.usuario.id, subtotalCalculado, descuentoNumero, totalCalculado, metodo_pago, cuotasNumero, turnoId]
+    );
 
     const venta = ventaResult.rows[0];
 
     // Insertar items y descontar stock
-    for (const item of items) {
+    for (const item of itemsVenta) {
       await client.query(
         'INSERT INTO venta_items (venta_id, producto_id, nombre_producto, precio_unitario, cantidad, subtotal) VALUES ($1,$2,$3,$4,$5,$6)',
-        [venta.id, item.id, item.nombre, item.precio, item.cantidad, item.precio * item.cantidad]
+        [venta.id, item.id, item.nombre, item.precio, item.cantidad, item.subtotal]
       );
 
       await client.query(
-        'UPDATE productos SET stock = stock - $1 WHERE id = $2 AND local_id = $3',
+        'UPDATE productos SET stock = stock - $1 WHERE id = $2 AND local_id = $3 AND stock >= $1',
         [item.cantidad, item.id, req.usuario.local_id]
       );
     }
 
     await client.query('COMMIT');
-    res.json({ ok: true, venta });
+    res.json({ ok: true, venta: { ...venta, items: itemsVenta } });
 
   } catch (err) {
+    console.error('Error registrando venta:', err);
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
   } finally {
@@ -82,6 +138,7 @@ router.get('/', verificarToken, async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
+    console.error('Error cargando ventas:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -95,7 +152,9 @@ router.delete('/dia/:fecha', verificarToken, async (req, res) => {
   try {
     await client.query('BEGIN');
     const ventas = await client.query(
-      'SELECT id FROM ventas WHERE local_id = $1 AND DATE(created_at) = $2',
+      `SELECT id FROM ventas
+       WHERE local_id = $1
+       AND DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') = $2`,
       [req.usuario.local_id, req.params.fecha]
     );
     const ids = ventas.rows.map(v => v.id);
@@ -105,7 +164,9 @@ router.delete('/dia/:fecha', verificarToken, async (req, res) => {
         [ids]
       );
       await client.query(
-        'DELETE FROM ventas WHERE local_id = $1 AND DATE(created_at) = $2',
+        `DELETE FROM ventas
+         WHERE local_id = $1
+         AND DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') = $2`,
         [req.usuario.local_id, req.params.fecha]
       );
     }

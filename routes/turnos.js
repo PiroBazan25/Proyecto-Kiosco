@@ -7,16 +7,20 @@ const verificarToken = require('../middleware/auth');
 router.post('/abrir', verificarToken, async (req, res) => {
   try {
     const turnoAbierto = await pool.query(
-      'SELECT * FROM turnos WHERE usuario_id = $1 AND estado = $2',
-      [req.usuario.id, 'abierto']
+      'SELECT * FROM turnos WHERE usuario_id = $1 AND local_id = $2 AND estado = $3',
+      [req.usuario.id, req.usuario.local_id, 'abierto']
     );
     if (turnoAbierto.rows.length > 0) {
       return res.json({ turno: turnoAbierto.rows[0], yaAbierto: true });
     }
     const { monto_apertura } = req.body;
+    const usuario = await pool.query(
+      'SELECT nombre FROM usuarios WHERE id = $1 AND local_id = $2',
+      [req.usuario.id, req.usuario.local_id]
+    );
     const result = await pool.query(
       'INSERT INTO turnos (local_id, usuario_id, usuario_nombre, monto_apertura) VALUES ($1,$2,$3,$4) RETURNING *',
-      [req.usuario.local_id, req.usuario.id, req.usuario.nombre, monto_apertura || 0]
+      [req.usuario.local_id, req.usuario.id, usuario.rows[0]?.nombre || 'Usuario', monto_apertura || 0]
     );
     res.json({ turno: result.rows[0], yaAbierto: false });
   } catch (err) {
@@ -28,8 +32,8 @@ router.post('/abrir', verificarToken, async (req, res) => {
 router.post('/cerrar', verificarToken, async (req, res) => {
   try {
     const turno = await pool.query(
-      'SELECT * FROM turnos WHERE usuario_id = $1 AND estado = $2',
-      [req.usuario.id, 'abierto']
+      'SELECT * FROM turnos WHERE usuario_id = $1 AND local_id = $2 AND estado = $3',
+      [req.usuario.id, req.usuario.local_id, 'abierto']
     );
     if (turno.rows.length === 0) {
       return res.status(404).json({ error: 'No hay turno abierto' });
@@ -62,8 +66,8 @@ router.get('/actual', verificarToken, async (req, res) => {
     const result = await pool.query(
   `SELECT *,
     (fecha_apertura AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') as fecha_apertura
-   FROM turnos WHERE usuario_id = $1 AND estado = $2`,
-  [req.usuario.id, 'abierto']
+   FROM turnos WHERE usuario_id = $1 AND local_id = $2 AND estado = $3`,
+  [req.usuario.id, req.usuario.local_id, 'abierto']
 );
     res.json(result.rows[0] || null);
   } catch (err) {
