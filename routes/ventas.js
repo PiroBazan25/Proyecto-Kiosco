@@ -41,8 +41,8 @@ router.post('/', verificarToken, async (req, res) => {
       }
 
       const productoResult = await client.query(
-        'SELECT id, nombre, precio, stock FROM productos WHERE id = $1 AND local_id = $2 AND activo = true FOR UPDATE',
-        [productoId, req.usuario.local_id]
+        'SELECT id, nombre, precio, stock, COALESCE(unidad_medida, $3) as unidad_medida FROM productos WHERE id = $1 AND local_id = $2 AND activo = true FOR UPDATE',
+        [productoId, req.usuario.local_id, 'unidad']
       );
       const producto = productoResult.rows[0];
       if (!producto) {
@@ -62,6 +62,7 @@ router.post('/', verificarToken, async (req, res) => {
         nombre: producto.nombre,
         precio,
         cantidad,
+        unidad_medida: producto.unidad_medida || 'unidad',
         subtotal: subtotalItem
       });
     }
@@ -83,8 +84,8 @@ router.post('/', verificarToken, async (req, res) => {
     // Insertar items y descontar stock
     for (const item of itemsVenta) {
       await client.query(
-        'INSERT INTO venta_items (venta_id, producto_id, nombre_producto, precio_unitario, cantidad, subtotal) VALUES ($1,$2,$3,$4,$5,$6)',
-        [venta.id, item.id, item.nombre, item.precio, item.cantidad, item.subtotal]
+        'INSERT INTO venta_items (venta_id, producto_id, nombre_producto, precio_unitario, cantidad, subtotal, unidad_medida) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+        [venta.id, item.id, item.nombre, item.precio, item.cantidad, item.subtotal, item.unidad_medida]
       );
 
       await client.query(
@@ -114,6 +115,7 @@ router.get('/', verificarToken, async (req, res) => {
         json_agg(json_build_object(
           'nombre', vi.nombre_producto,
           'cantidad', vi.cantidad,
+          'unidad_medida', COALESCE(vi.unidad_medida, 'unidad'),
           'precio', vi.precio_unitario,
           'subtotal', vi.subtotal
         ) ORDER BY vi.id) as items

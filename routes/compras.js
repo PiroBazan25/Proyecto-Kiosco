@@ -11,6 +11,7 @@ router.get('/', verificarToken, async (req, res) => {
         json_agg(json_build_object(
           'nombre_producto', ci.nombre_producto,
           'cantidad', ci.cantidad,
+          'unidad_medida', COALESCE(ci.unidad_medida, 'unidad'),
           'precio_unitario', ci.precio_unitario,
           'subtotal', ci.subtotal
         )) as items
@@ -41,16 +42,16 @@ router.post('/', verificarToken, async (req, res) => {
     let total = 0;
 
     for (const item of items) {
-      const productoId = Number(item.producto_id);
+      const productoId = item.producto_id;
       const cantidad = Number(item.cantidad);
       const precio = Number(item.precio_unitario);
-      if (!Number.isInteger(productoId) || !Number.isFinite(cantidad) || cantidad <= 0 || !Number.isFinite(precio) || precio < 0) {
+      if (!productoId || !Number.isFinite(cantidad) || cantidad <= 0 || !Number.isFinite(precio) || precio < 0) {
         await client.query('ROLLBACK');
         return res.status(400).json({ error: 'Item de compra inválido' });
       }
       const producto = await client.query(
-        'SELECT id, nombre FROM productos WHERE id = $1 AND local_id = $2 AND activo = true',
-        [productoId, req.usuario.local_id]
+        'SELECT id, nombre, COALESCE(unidad_medida, $3) as unidad_medida FROM productos WHERE id = $1 AND local_id = $2 AND activo = true',
+        [productoId, req.usuario.local_id, 'unidad']
       );
       if (producto.rows.length === 0) {
         await client.query('ROLLBACK');
@@ -62,6 +63,7 @@ router.post('/', verificarToken, async (req, res) => {
         producto_id: productoId,
         nombre_producto: producto.rows[0].nombre,
         cantidad,
+        unidad_medida: producto.rows[0].unidad_medida || 'unidad',
         precio_unitario: precio,
         subtotal
       });
@@ -76,8 +78,8 @@ router.post('/', verificarToken, async (req, res) => {
 
     for (const item of itemsCompra) {
       await client.query(
-        'INSERT INTO compra_items (compra_id, producto_id, nombre_producto, cantidad, precio_unitario, subtotal) VALUES ($1,$2,$3,$4,$5,$6)',
-        [compra.id, item.producto_id, item.nombre_producto, item.cantidad, item.precio_unitario, item.subtotal]
+        'INSERT INTO compra_items (compra_id, producto_id, nombre_producto, cantidad, precio_unitario, subtotal, unidad_medida) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+        [compra.id, item.producto_id, item.nombre_producto, item.cantidad, item.precio_unitario, item.subtotal, item.unidad_medida]
       );
 
       await client.query(

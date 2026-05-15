@@ -97,6 +97,7 @@ router.get('/historial', verificarToken, async (req, res) => {
           json_agg(json_build_object(
             'nombre_producto', vi.nombre_producto,
             'cantidad', vi.cantidad,
+            'unidad_medida', COALESCE(vi.unidad_medida, 'unidad'),
             'precio_unitario', vi.precio_unitario
           )) as items
          FROM ventas v

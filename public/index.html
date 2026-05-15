@@ -231,6 +231,48 @@ let clientesCache = [];
 let proveedoresCache = [];
 let itemsCompra = [];
 
+const UNIDADES_MEDIDA = ['unidad', 'kg', 'g', 'l', 'ml'];
+
+function unidadProducto(producto) {
+  return producto?.unidad_medida || 'unidad';
+}
+
+function nombreUnidad(unidad, cantidad = 1) {
+  if (unidad === 'unidad') return Math.abs(Number(cantidad)) === 1 ? 'u' : 'u';
+  return unidad;
+}
+
+function formatearCantidad(cantidad, unidad = 'unidad') {
+  const numero = Number(cantidad || 0);
+  const decimales = unidad === 'unidad' ? 0 : 3;
+  const texto = numero.toLocaleString('es-AR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimales
+  });
+  return `${texto} ${nombreUnidad(unidad, numero)}`;
+}
+
+function pasoCantidad(unidad = 'unidad') {
+  if (unidad === 'unidad') return 1;
+  if (unidad === 'g' || unidad === 'ml') return 50;
+  return 0.1;
+}
+
+function normalizarNumero(valor) {
+  return Number(String(valor || '0').replace(/\./g, '').replace(',', '.'));
+}
+
+function pedirCantidadProducto(producto) {
+  const unidad = unidadProducto(producto);
+  if (unidad === 'unidad') return 1;
+  const sugerido = unidad === 'g' || unidad === 'ml' ? '100' : '0,25';
+  const respuesta = prompt(`Cantidad para ${producto.nombre} (${unidad})`, sugerido);
+  if (respuesta === null) return null;
+  const cantidad = normalizarNumero(respuesta);
+  if (!Number.isFinite(cantidad) || cantidad <= 0) return null;
+  return cantidad;
+}
+
 
 function getToken() { return localStorage.getItem('km_token'); }
 function getHeaders() {
@@ -528,20 +570,27 @@ function renderProductGrid(prods) {
   grid.innerHTML = prods.map(p => `
     <div class="prod-card" onclick='addToTicket(${JSON.stringify(p.id)})'>
       <div class="name">${p.nombre}</div>
-      <div class="price">$${parseFloat(p.precio).toLocaleString('es-AR')}</div>
-      <div class="stock">Stock: ${p.stock}</div>
+      <div class="price">$${parseFloat(p.precio).toLocaleString('es-AR')} / ${nombreUnidad(unidadProducto(p))}</div>
+      <div class="stock">Stock: ${formatearCantidad(p.stock, unidadProducto(p))}</div>
     </div>`).join('');
 }
 
 function addToTicket(id) {
   const prod = productosCache.find(p => p.id === id);
   if (!prod) return;
-  if (prod.stock <= 0) { 
+  if (Number(prod.stock) <= 0) {
     beep('error');
     toast('Sin stock disponible', 'error'); return; }
+  const cantidadInicial = pedirCantidadProducto(prod);
+  if (!cantidadInicial) return;
+  if (cantidadInicial > Number(prod.stock)) {
+    beep('error');
+    toast('Stock insuficiente', 'error');
+    return;
+  }
   const existing = currentTicket.find(i => i.id === id);
-  if (existing) existing.cantidad++;
-  else currentTicket.push({ ...prod, precio: parseFloat(prod.precio), cantidad: 1 });
+  if (existing) existing.cantidad += cantidadInicial;
+  else currentTicket.push({ ...prod, precio: parseFloat(prod.precio), cantidad: cantidadInicial });
   renderTicket();
 }
 
@@ -562,15 +611,21 @@ function renderTicket() {
   container.innerHTML = currentTicket.map((item, idx) => `
     <div class="ticket-item">
       <span style="flex:1">${item.nombre}</span>
-      <button class="qty-btn" onclick="changeQty(${idx},-1)">-</button>
-      <span style="min-width:30px;text-align:center">${item.cantidad}</span>
-      <button class="qty-btn" onclick="changeQty(${idx},1)">+</button>
+      <button class="qty-btn" onclick="changeQty(${idx},-${pasoCantidad(unidadProducto(item))})">-</button>
+      <span style="min-width:58px;text-align:center">${formatearCantidad(item.cantidad, unidadProducto(item))}</span>
+      <button class="qty-btn" onclick="changeQty(${idx},${pasoCantidad(unidadProducto(item))})">+</button>
       <span style="min-width:70px;text-align:right">$${(item.precio*item.cantidad).toLocaleString('es-AR')}</span>
     </div>`).join('');
 }
 
 function changeQty(idx, delta) {
-  currentTicket[idx].cantidad += delta;
+  const item = currentTicket[idx];
+  const nuevaCantidad = Number((item.cantidad + delta).toFixed(3));
+  if (nuevaCantidad > Number(item.stock)) {
+    toast('Stock insuficiente', 'error');
+    return;
+  }
+  currentTicket[idx].cantidad = nuevaCantidad;
   if (currentTicket[idx].cantidad <= 0) currentTicket.splice(idx, 1);
   renderTicket();
 }
@@ -622,7 +677,7 @@ async function confirmarPago() {
     // Actualizar stock local
     for (let item of currentTicket) {
       const prod = productosCache.find(p => p.id === item.id);
-      if (prod) prod.stock -= item.cantidad;
+      if (prod) prod.stock = Number((Number(prod.stock) - item.cantidad).toFixed(3));
     }
 
     if (selectedPayment === 'efectivo') {
@@ -633,7 +688,7 @@ async function confirmarPago() {
     beep('cobrar');
     toast('✅ Venta registrada correctamente', 'success');
     console.log('Venta para ticket:', data.venta);
-    imprimirTicket({ ...data.venta, items: currentTicket.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio })) });
+    imprimirTicket({ ...data.venta, items: currentTicket.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio, unidad_medida: unidadProducto(i) })) });
 
     currentTicket = []; descuentoActivo = false; descuentoValor = 0; calcValue = '0';
     renderPOS();
@@ -669,7 +724,7 @@ function imprimirTicket(venta) {
       <div style="margin-bottom:4px">
         <div>${i.nombre || i.nombre_producto}</div>
         <div style="display:flex;justify-content:space-between;font-size:12px">
-          <span>${i.cantidad} x $${precio.toLocaleString('es-AR')}</span>
+          <span>${formatearCantidad(i.cantidad, i.unidad_medida || 'unidad')} x $${precio.toLocaleString('es-AR')}</span>
           <span>$${subtotal.toLocaleString('es-AR')}</span>
         </div>
       </div>`;
@@ -922,7 +977,7 @@ async function buscarVentas(todo = false) {
                     timeZone: 'America/Argentina/Buenos_Aires'
               })}</td>
               <td>${v.cajero || '-'}</td>
-              <td style="font-size:11px">${(v.items || []).filter(i=>i.nombre).map(i=>`${i.nombre} x${i.cantidad}`).join(', ')}</td>
+              <td style="font-size:11px">${(v.items || []).filter(i=>i.nombre).map(i=>`${i.nombre} x${formatearCantidad(i.cantidad, i.unidad_medida || 'unidad')}`).join(', ')}</td>
               <td>${parseFloat(v.descuento||0)>0 ? '-$'+parseFloat(v.descuento).toLocaleString('es-AR') : '-'}</td>
               <td><strong>$${parseFloat(v.total).toLocaleString('es-AR')}</strong></td>
               <td>${v.metodo_pago}</td>
@@ -967,16 +1022,16 @@ async function renderProductos() {
     <div class="card">
       <div class="card-title">📦 Productos</div>
       <table>
-        <thead><tr><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Mín.</th><th></th></tr></thead>
+        <thead><tr><th>Nombre</th><th>Categoría</th><th>Unidad</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Mín.</th><th></th></tr></thead>
         <tbody>
           ${prods.map(p => `
             <tr>
-              <td>${p.nombre}</td><td>${p.categoria||'-'}</td>
+              <td>${p.nombre}</td><td>${p.categoria||'-'}</td><td>${nombreUnidad(unidadProducto(p))}</td>
               <td>$${parseFloat(p.precio).toLocaleString('es-AR')}</td>
               <td>$${parseFloat(p.costo||0).toLocaleString('es-AR')}</td>
-              <td class="${p.stock<=p.stock_min?'badge-danger':''}">${p.stock}</td>
-              <td>${p.stock_min}</td>
-              <td><button class="btn btn-sm" onclick="modalProducto(${p.id})">✏️</button></td>
+              <td class="${Number(p.stock)<=Number(p.stock_min)?'badge-danger':''}">${formatearCantidad(p.stock, unidadProducto(p))}</td>
+              <td>${formatearCantidad(p.stock_min, unidadProducto(p))}</td>
+              <td><button class="btn btn-sm" onclick='modalProducto(${JSON.stringify(p.id)})'>✏️</button></td>
             </tr>`).join('')}
         </tbody>
       </table>
@@ -992,6 +1047,10 @@ function modalProducto(id = null) {
         <div class="lbl">Nombre</div><input class="inp" id="prod-nombre" value="${prod?.nombre||''}" style="margin-bottom:12px">
         <div class="lbl">Categoría</div><input class="inp" id="prod-cat" value="${prod?.categoria||''}" style="margin-bottom:12px">
         <div class="lbl">Código de barras</div><input class="inp" id="prod-barras" value="${prod?.cod_barras||''}" placeholder="Escaneá o escribí el código" style="margin-bottom:12px">
+        <div class="lbl">Unidad de venta</div>
+        <select class="inp" id="prod-unidad" style="margin-bottom:12px">
+          ${UNIDADES_MEDIDA.map(u=>`<option value="${u}" ${unidadProducto(prod)===u?'selected':''}>${u === 'unidad' ? 'Unidad' : u}</option>`).join('')}
+        </select>
         <div class="lbl">Proveedor</div>
         <select class="inp" id="prod-proveedor" style="margin-bottom:12px">
           <option value="">Sin proveedor</option>
@@ -1007,7 +1066,7 @@ function modalProducto(id = null) {
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end">
           <button class="btn" onclick="cerrarModal()">Cancelar</button>
-          <button class="btn btn-primary" onclick="guardarProducto(${id||'null'})">Guardar</button>
+          <button class="btn btn-primary" onclick='guardarProducto(${id ? JSON.stringify(id) : 'null'})'>Guardar</button>
         </div>
       </div>
     </div>`;
@@ -1017,15 +1076,16 @@ async function guardarProducto(id) {
   const nombre = document.getElementById('prod-nombre').value;
   if (!nombre) { toast('El nombre es obligatorio', 'error'); return; }
  const proveedorId = document.getElementById('prod-proveedor').value;
-const proveedor = proveedoresCache.find(p => p.id === parseInt(proveedorId));
+const proveedor = proveedoresCache.find(p => String(p.id) === String(proveedorId));
 const body = {
   nombre,
   categoria: document.getElementById('prod-cat').value || 'General',
-  precio: parseFloat(document.getElementById('prod-precio').value.replace(/\./g, '').replace(',', '.')),
-  costo: parseFloat(document.getElementById('prod-costo').value.replace(/\./g, '').replace(',', '.')),
-  stock: parseInt(document.getElementById('prod-stock').value),
-  stock_min: parseInt(document.getElementById('prod-min').value),
+  precio: normalizarNumero(document.getElementById('prod-precio').value),
+  costo: normalizarNumero(document.getElementById('prod-costo').value),
+  stock: normalizarNumero(document.getElementById('prod-stock').value),
+  stock_min: normalizarNumero(document.getElementById('prod-min').value),
   cod_barras: document.getElementById('prod-barras').value || null,
+  unidad_medida: document.getElementById('prod-unidad').value,
   proveedor_id: proveedorId || null,
   proveedor_nombre: proveedor?.nombre || null
 };
@@ -1044,12 +1104,12 @@ const body = {
   async function renderStock() {
   await cargarProductos();
   const prods = productosCache;
-  const bajos = prods.filter(p => p.stock <= p.stock_min);
+  const bajos = prods.filter(p => Number(p.stock) <= Number(p.stock_min));
   document.getElementById('main-content').innerHTML = `
     <div class="grid-3" style="margin-bottom:16px">
       <div class="metric"><div class="metric-label">Stock bajo</div><div class="metric-val" style="color:var(--danger)">${bajos.length}</div></div>
       <div class="metric"><div class="metric-label">Productos totales</div><div class="metric-val">${prods.length}</div></div>
-      <div class="metric"><div class="metric-label">Valor en stock</div><div class="metric-val">$${prods.reduce((s,p)=>s+parseFloat(p.precio)*p.stock,0).toLocaleString('es-AR')}</div></div>
+      <div class="metric"><div class="metric-label">Valor en stock</div><div class="metric-val">$${prods.reduce((s,p)=>s+parseFloat(p.precio)*Number(p.stock || 0),0).toLocaleString('es-AR')}</div></div>
     </div>
     ${bajos.length ? `<div class="card" style="background:var(--accent3);color:white;margin-bottom:16px">⚠️ Stock bajo: ${bajos.map(p=>p.nombre).join(', ')}</div>` : ''}
     <div class="card">
@@ -1059,8 +1119,8 @@ const body = {
           ${prods.map(p => `
             <tr>
               <td>${p.nombre}</td>
-              <td><strong class="${p.stock<=p.stock_min?'badge-danger':''}">${p.stock}</strong></td>
-              <td>${p.stock_min}</td>
+              <td><strong class="${Number(p.stock)<=Number(p.stock_min)?'badge-danger':''}">${formatearCantidad(p.stock, unidadProducto(p))}</strong></td>
+              <td>${formatearCantidad(p.stock_min, unidadProducto(p))}</td>
               <td>${p.stock<=p.stock_min?'⚠️ Reponer':'✅ OK'}</td>
             </tr>`).join('')}
         </tbody>
@@ -1643,7 +1703,7 @@ ${t.fecha_cierre ? '→ ' + fechaHoraAR(t.fecha_cierre) : '(en curso)'}
             <tbody>
               ${ventas.map(v => `
                 <tr>
-                  <td>${new Date(v.created_at).toLocaleTimeString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', hour12: false })}</td>                  <td style="font-size:11px">${(v.items||[]).map(i=>`${i.nombre_producto} x${i.cantidad}`).join(', ')}</td>
+                  <td>${new Date(v.created_at).toLocaleTimeString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', hour12: false })}</td>                  <td style="font-size:11px">${(v.items||[]).map(i=>`${i.nombre_producto} x${formatearCantidad(i.cantidad, i.unidad_medida || 'unidad')}`).join(', ')}</td>
                   <td>${v.metodo_pago}</td>
                   <td><strong>$${parseFloat(v.total).toLocaleString('es-AR')}</strong></td>
                 </tr>`).join('')}
@@ -2007,7 +2067,7 @@ async function renderCompras() {
               <tr>
                 <td>${fechaHoraAR(c.created_at)}</td>
                 <td>${c.proveedor_nombre||'-'}</td>
-                <td style="font-size:11px">${(c.items||[]).filter(i=>i.nombre_producto).map(i=>`${i.nombre_producto} x${i.cantidad}`).join(', ')}</td>
+                <td style="font-size:11px">${(c.items||[]).filter(i=>i.nombre_producto).map(i=>`${i.nombre_producto} x${formatearCantidad(i.cantidad, i.unidad_medida || 'unidad')}`).join(', ')}</td>
                 <td><strong>$${parseFloat(c.total).toLocaleString('es-AR')}</strong></td>
               </tr>`).join('')}
           </tbody>
@@ -2048,12 +2108,12 @@ async function modalCompra() {
             <div>
               <div class="lbl">Producto</div>
               <select class="inp" id="compra-producto">
-                ${productosCache.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('')}
+                ${productosCache.map(p=>`<option value="${p.id}">${p.nombre} (${nombreUnidad(unidadProducto(p))})</option>`).join('')}
               </select>
             </div>
             <div>
               <div class="lbl">Cantidad</div>
-              <input class="inp" type="number" id="compra-cantidad" value="1" min="1">
+              <input class="inp" type="number" id="compra-cantidad" value="1" min="0.001" step="0.001">
             </div>
             <div>
               <div class="lbl">Precio unitario</div>
@@ -2074,16 +2134,16 @@ async function modalCompra() {
 }
 
 function agregarItemCompra() {
-  const productoId = parseInt(document.getElementById('compra-producto').value);
-  const cantidad = parseInt(document.getElementById('compra-cantidad').value);
-  const precio = parseFloat(document.getElementById('compra-precio').value);
-  const prod = productosCache.find(p => p.id === productoId);
+  const productoId = document.getElementById('compra-producto').value;
+  const cantidad = normalizarNumero(document.getElementById('compra-cantidad').value);
+  const precio = normalizarNumero(document.getElementById('compra-precio').value);
+  const prod = productosCache.find(p => String(p.id) === String(productoId));
   if (!prod || !cantidad || !precio) { toast('Completá todos los campos', 'error'); return; }
-  const existing = itemsCompra.find(i => i.producto_id === productoId);
+  const existing = itemsCompra.find(i => String(i.producto_id) === String(productoId));
   if (existing) {
     existing.cantidad += cantidad;
   } else {
-    itemsCompra.push({ producto_id: productoId, nombre_producto: prod.nombre, cantidad, precio_unitario: precio });
+    itemsCompra.push({ producto_id: productoId, nombre_producto: prod.nombre, cantidad, precio_unitario: precio, unidad_medida: unidadProducto(prod) });
   }
   renderItemsCompra();
 }
@@ -2105,7 +2165,7 @@ function renderItemsCompra() {
         ${itemsCompra.map((item, idx) => `
           <tr>
             <td>${item.nombre_producto}</td>
-            <td>${item.cantidad}</td>
+            <td>${formatearCantidad(item.cantidad, item.unidad_medida || 'unidad')}</td>
             <td>$${item.precio_unitario.toLocaleString('es-AR')}</td>
             <td>$${(item.precio_unitario * item.cantidad).toLocaleString('es-AR')}</td>
             <td><button class="btn btn-sm btn-danger" onclick="quitarItemCompra(${idx})">✕</button></td>
@@ -2123,7 +2183,7 @@ function quitarItemCompra(idx) {
 async function guardarCompra() {
   if (itemsCompra.length === 0) { toast('Agregá al menos un producto', 'error'); return; }
   const proveedorId = document.getElementById('compra-proveedor').value;
-  const proveedor = proveedoresCache.find(p => p.id === parseInt(proveedorId));
+  const proveedor = proveedoresCache.find(p => String(p.id) === String(proveedorId));
   const body = {
     proveedor_id: proveedorId || null,
     proveedor_nombre: proveedor?.nombre || 'Sin proveedor',
