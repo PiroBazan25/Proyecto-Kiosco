@@ -230,6 +230,7 @@ let turnoActual = null;
 let clientesCache = [];
 let proveedoresCache = [];
 let itemsCompra = [];
+let productosImportacionPendiente = [];
 
 const UNIDADES_MEDIDA = ['unidad', 'kg', 'g', 'l', 'ml'];
 
@@ -1015,7 +1016,13 @@ async function borrarDia(fecha, fechaFormateada) {
 
 // ==================== PRODUCTOS ====================
 async function renderProductos() {
-  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="modalProducto()">+ Nuevo producto</button>`;
+  document.getElementById('topbar-actions').innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" onclick="descargarPlantillaProductos()">Descargar plantilla</button>
+      <button class="btn" onclick="document.getElementById('csv-productos').click()">Importar CSV</button>
+      <input id="csv-productos" type="file" accept=".csv,text/csv" style="display:none" onchange="leerCSVProductos(event)">
+      <button class="btn btn-primary" onclick="modalProducto()">+ Nuevo producto</button>
+    </div>`;
   await cargarProductos();
   const prods = productosCache;
   document.getElementById('main-content').innerHTML = `
@@ -1036,6 +1043,152 @@ async function renderProductos() {
         </tbody>
       </table>
     </div>`;
+}
+
+function descargarPlantillaProductos() {
+  const csv = [
+    'nombre,categoria,precio,costo,stock,stock_min,cod_barras,unidad_medida',
+    'Coca Cola 500ml,Bebidas,1200,900,24,5,779000000001,unidad',
+    'Pan frances,Panaderia,2500,1800,10,2,,kg',
+    'Jamon cocido,Fiambre,8000,6000,5,1,,kg'
+  ].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'plantilla-productos.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function parseCSVProductos(texto) {
+  const primeraLinea = texto.split(/\r?\n/)[0] || '';
+  const separador = (primeraLinea.match(/;/g) || []).length > (primeraLinea.match(/,/g) || []).length ? ';' : ',';
+  const filas = [];
+  let fila = [];
+  let valor = '';
+  let comillas = false;
+  for (let i = 0; i < texto.length; i++) {
+    const c = texto[i];
+    const siguiente = texto[i + 1];
+    if (c === '"' && comillas && siguiente === '"') {
+      valor += '"';
+      i++;
+    } else if (c === '"') {
+      comillas = !comillas;
+    } else if (c === separador && !comillas) {
+      fila.push(valor.trim());
+      valor = '';
+    } else if ((c === '\n' || c === '\r') && !comillas) {
+      if (c === '\r' && siguiente === '\n') i++;
+      fila.push(valor.trim());
+      if (fila.some(v => v !== '')) filas.push(fila);
+      fila = [];
+      valor = '';
+    } else {
+      valor += c;
+    }
+  }
+  fila.push(valor.trim());
+  if (fila.some(v => v !== '')) filas.push(fila);
+  if (filas.length < 2) return [];
+  const headers = filas[0].map(h => h.trim().toLowerCase());
+  return filas.slice(1).map(cols => {
+    const item = {};
+    headers.forEach((h, idx) => { item[h] = cols[idx] || ''; });
+    return item;
+  });
+}
+
+function normalizarProductoImportado(p) {
+  return {
+    nombre: p.nombre || '',
+    categoria: p.categoria || 'General',
+    precio: normalizarNumero(p.precio),
+    costo: normalizarNumero(p.costo),
+    stock: normalizarNumero(p.stock),
+    stock_min: normalizarNumero(p.stock_min || 5),
+    cod_barras: p.cod_barras || '',
+    unidad_medida: UNIDADES_MEDIDA.includes(p.unidad_medida) ? p.unidad_medida : 'unidad'
+  };
+}
+
+async function leerCSVProductos(event) {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) return;
+  const texto = await file.text();
+  const productos = parseCSVProductos(texto).map(normalizarProductoImportado);
+  if (productos.length === 0) {
+    toast('El CSV no tiene productos', 'error');
+    return;
+  }
+  mostrarPreviewImportacion(productos);
+}
+
+function mostrarPreviewImportacion(productos) {
+  productosImportacionPendiente = productos;
+  const invalidos = productos.filter(p => !p.nombre);
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)cerrarModal()">
+      <div class="modal" style="width:760px">
+        <h3 style="margin-bottom:12px">Importar productos</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">
+          Se encontraron ${productos.length} productos. ${invalidos.length ? `${invalidos.length} filas no tienen nombre.` : ''}
+        </p>
+        <div style="max-height:360px;overflow:auto;margin-bottom:16px">
+          <table>
+            <thead><tr><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Unidad</th><th>Código</th></tr></thead>
+            <tbody>
+              ${productos.slice(0, 50).map(p => `
+                <tr>
+                  <td>${p.nombre || '<span style="color:var(--danger)">Sin nombre</span>'}</td>
+                  <td>${p.categoria}</td>
+                  <td>$${Number(p.precio || 0).toLocaleString('es-AR')}</td>
+                  <td>${formatearCantidad(p.stock, p.unidad_medida)}</td>
+                  <td>${p.unidad_medida}</td>
+                  <td>${p.cod_barras || '-'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+          ${productos.length > 50 ? '<p style="color:var(--muted);font-size:12px;margin-top:8px">Mostrando primeras 50 filas.</p>' : ''}
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="cerrarModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="importarProductosPendientes()">Importar</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function importarProductosPendientes() {
+  await importarProductos(productosImportacionPendiente);
+}
+
+async function importarProductos(productos) {
+  const validos = productos.filter(p => p.nombre);
+  if (validos.length === 0) {
+    toast('No hay productos validos para importar', 'error');
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/api/productos/importar`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ productos: validos })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast(data.error || 'Error al importar', 'error');
+      return;
+    }
+    toast(`Importacion lista: ${data.creados} creados, ${data.actualizados} actualizados`, 'success');
+    if (data.errores?.length) console.warn('Errores de importacion:', data.errores);
+    cerrarModal();
+    renderProductos();
+  } catch(e) {
+    toast('Error de conexion', 'error');
+  }
 }
 
 function modalProducto(id = null) {
