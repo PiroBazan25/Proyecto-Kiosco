@@ -475,7 +475,7 @@ function renderPOS() {
   if (!currentLocal) { document.getElementById('main-content').innerHTML = '<div class="card">⚠️ No hay local seleccionado</div>'; return; }
   const prods = productosCache || [];
   const cfgDesc = currentLocal?.config?.descuentos;
-  document.getElementById('topbar-actions').innerHTML = `<div style="display:flex;gap:8px;align-items:center"><input class="inp" id="buscar-pos" placeholder="🔍 Buscar o escanear código..." style="width:250px" oninput="filterProducts(this.value)"><button class="btn btn-sm btn-primary" onclick="document.getElementById('buscar-pos').focus();document.getElementById('buscar-pos').value='';toast('Listo para escanear 📷', 'success')">📷 Escanear</button></div>`;
+  document.getElementById('topbar-actions').innerHTML = `<div style="display:flex;gap:8px;align-items:center"><input class="inp" id="buscar-pos" placeholder="Buscar o escanear codigo..." style="width:250px" oninput="filterProducts(this.value)" onkeydown="if(event.key==='Enter')buscarPorCodigoPOS(this.value)"><button class="btn btn-sm btn-primary" onclick="activarScannerPOS()">Escanear</button></div>`;
   document.getElementById('main-content').innerHTML = `
     <div class="pos-container">
       <div>
@@ -548,6 +548,30 @@ function calcularVuelto() {
 function setPayment(method) { selectedPayment = method; renderPOS(); }
 function setCuotas(cuotas) { selectedCuotas = parseInt(cuotas); }
 
+function activarScannerPOS() {
+  const input = document.getElementById('buscar-pos');
+  if (!input) return;
+  input.value = '';
+  input.focus();
+  toast('Listo para escanear codigo', 'success');
+}
+
+function buscarPorCodigoPOS(codigo) {
+  const valor = String(codigo || '').trim();
+  if (!valor) return;
+  const producto = productosCache.find(p => String(p.cod_barras || '') === valor);
+  if (!producto) {
+    beep('error');
+    toast('Producto no encontrado', 'error');
+    return;
+  }
+  beep('scanner');
+  addToTicket(producto.id);
+  const input = document.getElementById('buscar-pos');
+  if (input) input.value = '';
+  renderProductGrid(productosCache);
+}
+
 function filterProducts(q) {
   if (!q) { renderProductGrid(productosCache); return; }
   const prods = productosCache.filter(p => 
@@ -555,10 +579,7 @@ function filterProducts(q) {
     (p.cod_barras && p.cod_barras.includes(q))
   );
   if (prods.length === 1 && q.length > 5) {
-    beep('scanner');
-    addToTicket(prods[0].id);
-    document.getElementById('buscar-pos').value = '';
-    renderProductGrid(productosCache);
+    buscarPorCodigoPOS(q);
     return;
   }
   renderProductGrid(prods);
@@ -1191,6 +1212,14 @@ async function importarProductos(productos) {
   }
 }
 
+function activarScannerProducto() {
+  const input = document.getElementById('prod-barras');
+  if (!input) return;
+  input.value = '';
+  input.focus();
+  toast('Escanea el codigo del producto', 'success');
+}
+
 function modalProducto(id = null) {
   const prod = id ? productosCache.find(p => p.id === id) : null;
   document.getElementById('modal-root').innerHTML = `
@@ -1199,8 +1228,11 @@ function modalProducto(id = null) {
         <h3 style="margin-bottom:16px">${id ? 'Editar' : 'Nuevo'} producto</h3>
         <div class="lbl">Nombre</div><input class="inp" id="prod-nombre" value="${prod?.nombre||''}" style="margin-bottom:12px">
         <div class="lbl">Categoría</div><input class="inp" id="prod-cat" value="${prod?.categoria||''}" style="margin-bottom:12px">
-        <div class="lbl">Código de barras</div><input class="inp" id="prod-barras" value="${prod?.cod_barras||''}" placeholder="Escaneá o escribí el código" style="margin-bottom:12px">
-        <div class="lbl">Unidad de venta</div>
+        <div class="lbl">Codigo de barras</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <input class="inp" id="prod-barras" value="${prod?.cod_barras||''}" placeholder="Escanea o escribi el codigo" onkeydown="if(event.key==='Enter')event.preventDefault()">
+          <button class="btn" onclick="activarScannerProducto()">Escanear</button>
+        </div>
         <select class="inp" id="prod-unidad" style="margin-bottom:12px">
           ${UNIDADES_MEDIDA.map(u=>`<option value="${u}" ${unidadProducto(prod)===u?'selected':''}>${u === 'unidad' ? 'Unidad' : u}</option>`).join('')}
         </select>

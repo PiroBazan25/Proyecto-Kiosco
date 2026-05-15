@@ -86,14 +86,19 @@ router.post('/importar', verificarToken, async (req, res) => {
           'SELECT id FROM productos WHERE local_id = $1 AND cod_barras = $2 AND activo = true',
           [req.usuario.local_id, codBarras]
         );
+      } else {
+        existente = await client.query(
+          'SELECT id FROM productos WHERE local_id = $1 AND LOWER(nombre) = LOWER($2) AND activo = true ORDER BY created_at DESC LIMIT 1',
+          [req.usuario.local_id, nombre]
+        );
       }
 
       if (existente.rows.length > 0) {
         await client.query(
           `UPDATE productos
-           SET nombre=$1, categoria=$2, precio=$3, costo=$4, stock=$5, stock_min=$6, unidad_medida=$7
-           WHERE id=$8 AND local_id=$9`,
-          [nombre, categoria, precio, costo, stock, stockMin, unidad, existente.rows[0].id, req.usuario.local_id]
+           SET nombre=$1, categoria=$2, precio=$3, costo=$4, stock=$5, stock_min=$6, unidad_medida=$7, cod_barras=COALESCE($8, cod_barras)
+           WHERE id=$9 AND local_id=$10`,
+          [nombre, categoria, precio, costo, stock, stockMin, unidad, codBarras, existente.rows[0].id, req.usuario.local_id]
         );
         resultado.actualizados++;
       } else {
