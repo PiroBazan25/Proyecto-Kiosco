@@ -75,6 +75,120 @@ router.get('/superadmin', verificarToken, async (req, res) => {
   }
 });
 
+router.get('/dueno-dashboard', verificarToken, async (req, res) => {
+  if (!['admin_local', 'superadmin'].includes(req.usuario.rol)) {
+    return res.status(403).json({ error: 'Sin permiso' });
+  }
+  if (!req.usuario.local_id) {
+    return res.status(400).json({ error: 'No hay local seleccionado' });
+  }
+  try {
+    const hoy = new Date().toISOString().split('T')[0];
+
+    const resumen = await pool.query(
+      `SELECT COUNT(*) as ventas,
+        COALESCE(SUM(total), 0) as facturado,
+        COALESCE(SUM(descuento), 0) as descuentos,
+        COALESCE(AVG(total), 0) as ticket_promedio
+       FROM ventas
+       WHERE local_id = $1
+       AND DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') = $2`,
+      [req.usuario.local_id, hoy]
+    );
+
+    const ganancias = await pool.query(
+      `SELECT COALESCE(SUM((vi.precio_unitario - p.costo) * vi.cantidad), 0) as ganancia
+       FROM venta_items vi
+       JOIN ventas v ON vi.venta_id = v.id
+       JOIN productos p ON vi.producto_id = p.id
+       WHERE v.local_id = $1
+       AND DATE(v.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') = $2`,
+      [req.usuario.local_id, hoy]
+    );
+
+    const turnosActivos = await pool.query(
+      `SELECT t.id, t.usuario_id, t.usuario_nombre, t.monto_apertura,
+        (t.fecha_apertura AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') as fecha_apertura,
+        COUNT(v.id) as ventas,
+        COALESCE(SUM(v.total), 0) as facturado
+       FROM turnos t
+       LEFT JOIN ventas v ON v.turno_id = t.id
+       WHERE t.local_id = $1 AND t.estado = 'abierto'
+       GROUP BY t.id
+       ORDER BY t.fecha_apertura DESC`,
+      [req.usuario.local_id]
+    );
+
+    const ultimasVentas = await pool.query(
+      `SELECT v.id, v.total, v.metodo_pago, v.created_at, u.nombre as cajero,
+        json_agg(json_build_object(
+          'nombre', vi.nombre_producto,
+          'cantidad', vi.cantidad,
+          'unidad_medida', COALESCE(vi.unidad_medida, 'unidad')
+        ) ORDER BY vi.id) as items
+       FROM ventas v
+       LEFT JOIN usuarios u ON u.id = v.usuario_id
+       LEFT JOIN venta_items vi ON vi.venta_id = v.id
+       WHERE v.local_id = $1
+       GROUP BY v.id, u.nombre
+       ORDER BY v.created_at DESC
+       LIMIT 8`,
+      [req.usuario.local_id]
+    );
+
+    const stockBajo = await pool.query(
+      `SELECT id, nombre, stock, stock_min, COALESCE(unidad_medida, 'unidad') as unidad_medida
+       FROM productos
+       WHERE local_id = $1 AND activo = true AND stock <= stock_min
+       ORDER BY stock ASC, nombre ASC
+       LIMIT 8`,
+      [req.usuario.local_id]
+    );
+
+    const ventasPorHora = await pool.query(
+      `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') as hora,
+        COUNT(*) as ventas,
+        COALESCE(SUM(total), 0) as facturado
+       FROM ventas
+       WHERE local_id = $1
+       AND DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') = $2
+       GROUP BY EXTRACT(HOUR FROM created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires')
+       ORDER BY hora ASC`,
+      [req.usuario.local_id, hoy]
+    );
+
+    res.json({
+      fecha: hoy,
+      resumen: {
+        ventas: Number(resumen.rows[0].ventas || 0),
+        facturado: Number(resumen.rows[0].facturado || 0),
+        descuentos: Number(resumen.rows[0].descuentos || 0),
+        ticket_promedio: Number(resumen.rows[0].ticket_promedio || 0),
+        ganancia: Number(ganancias.rows[0].ganancia || 0)
+      },
+      turnosActivos: turnosActivos.rows.map(t => ({
+        ...t,
+        ventas: Number(t.ventas || 0),
+        facturado: Number(t.facturado || 0),
+        monto_apertura: Number(t.monto_apertura || 0)
+      })),
+      ultimasVentas: ultimasVentas.rows.map(v => ({ ...v, total: Number(v.total || 0) })),
+      stockBajo: stockBajo.rows.map(p => ({
+        ...p,
+        stock: Number(p.stock || 0),
+        stock_min: Number(p.stock_min || 0)
+      })),
+      ventasPorHora: ventasPorHora.rows.map(h => ({
+        hora: Number(h.hora),
+        ventas: Number(h.ventas || 0),
+        facturado: Number(h.facturado || 0)
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/dashboard', verificarToken, async (req, res) => {
   if (!['admin_local', 'superadmin'].includes(req.usuario.rol)) {
     return res.status(403).json({ error: 'Sin permiso' });

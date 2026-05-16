@@ -207,7 +207,8 @@ th{color:var(--muted);font-weight:600;font-size:11px}
         <div style="font-size:12px;margin-top:8px" id="local-name-badge"></div>
       </div>
       <div style="flex:1;padding:12px 0">
-        <div class="nav-item active" data-page="pos" onclick="navigate('pos')"><span>💰</span> POS / Venta</div>
+        <div class="nav-item active" id="nav-dashboard" data-page="dashboard" onclick="navigate('dashboard')"><span>📌</span> Dashboard</div>
+        <div class="nav-item" data-page="pos" onclick="navigate('pos')"><span>💰</span> POS / Venta</div>
         <div class="nav-item" id="nav-turnos" data-page="turnos" onclick="navigate('turnos')" style="display:none"><span>🔄</span> Turnos / Caja</div>
         <div class="nav-item" data-page="ventas" onclick="navigate('ventas')"><span>📋</span> Historial</div>
         <div class="nav-item" data-page="reportes" onclick="navigate('reportes')"><span>📊</span> Reportes</div>
@@ -381,16 +382,18 @@ async function doLogin() {
 
     if (currentUser.rol === 'superadmin') {
   document.getElementById('superadmin-panel').style.display = 'block';
+  document.getElementById('nav-dashboard').style.display = 'none';
   beep('login');
   navigate('locales');
   document.getElementById('btn-cerrar-turno').style.display = 'none';
   document.getElementById('nav-turnos').style.display = 'block';
 } else {
   document.getElementById('superadmin-panel').style.display = 'none';
+  document.getElementById('nav-dashboard').style.display = currentUser.rol === 'admin_local' ? 'flex' : 'none';
   await cargarProductos();
   await cargarConfig();
   beep('login');
-  navigate('pos');
+  navigate(currentUser.rol === 'admin_local' ? 'dashboard' : 'pos');
   if (currentUser.rol === 'cajero') {
     await verificarTurno();
     document.getElementById('btn-cerrar-turno').style.display = 'block';
@@ -439,9 +442,10 @@ function navigate(page) {
   const activeEl = document.querySelector(`[data-page="${page}"]`);
   if (activeEl) activeEl.classList.add('active');
   const titles = { pos:'💰 POS / Caja', ventas:'📋 Historial de ventas', productos:'📦 Productos', stock:'📊 Control de Stock', proveedores:'🚚 Proveedores', usuarios:'👥 Usuarios', config:'⚙️ Configuración', locales:'🏢 Todos los Locales', soporte:'🛠️ Soporte Técnico' };
-  document.getElementById('page-title').innerText = page === 'super-reportes' ? 'Reportes globales' : (titles[page] || page);
+  document.getElementById('page-title').innerText = page === 'super-reportes' ? 'Reportes globales' : page === 'dashboard' ? 'Dashboard' : (titles[page] || page);
   document.getElementById('topbar-actions').innerHTML = '';
-  if (page === 'pos') renderPOS();
+  if (page === 'dashboard') renderDashboardDueno();
+  else if (page === 'pos') renderPOS();
   else if (page === 'ventas') renderVentas();
   else if (page === 'productos') renderProductos();
   else if (page === 'stock') renderStock();
@@ -501,6 +505,101 @@ function aplicarDescuentoManual() {
 function toggleDescuento() {
   if (!descuentoActivo) aplicarDescuentoManual();
   else { descuentoActivo = false; descuentoValor = 0; renderTicket(); }
+}
+
+// ==================== DASHBOARD DUEÑO ====================
+async function renderDashboardDueno() {
+  if (!currentLocal) {
+    document.getElementById('main-content').innerHTML = '<div class="card">No hay local seleccionado</div>';
+    return;
+  }
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="renderDashboardDueno()">Actualizar</button>`;
+  document.getElementById('main-content').innerHTML = '<div class="card">Cargando dashboard...</div>';
+  try {
+    const res = await fetch(`${API}/api/reportes/dueno-dashboard`, { headers: getHeaders() });
+    const data = await res.json();
+    if (!res.ok) {
+      document.getElementById('main-content').innerHTML = '<div class="card">No se pudo cargar el dashboard</div>';
+      return;
+    }
+    const resumen = data.resumen || {};
+    const turnos = data.turnosActivos || [];
+    const ventas = data.ultimasVentas || [];
+    const stock = data.stockBajo || [];
+    const cajaAbierta = turnos.length > 0;
+
+    document.getElementById('main-content').innerHTML = `
+      <div class="grid-4" style="margin-bottom:16px">
+        <div class="metric"><div class="metric-label">Facturado hoy</div><div class="metric-val">$${Number(resumen.facturado || 0).toLocaleString('es-AR')}</div></div>
+        <div class="metric"><div class="metric-label">Ventas hoy</div><div class="metric-val">${Number(resumen.ventas || 0)}</div></div>
+        <div class="metric"><div class="metric-label">Ganancia estimada</div><div class="metric-val">$${Number(resumen.ganancia || 0).toLocaleString('es-AR')}</div></div>
+        <div class="metric"><div class="metric-label">Ticket promedio</div><div class="metric-val">$${Number(resumen.ticket_promedio || 0).toLocaleString('es-AR')}</div></div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:16px">
+        <div class="card">
+          <div class="card-title">Estado de caja</div>
+          ${cajaAbierta ? turnos.map(t => `
+            <div style="padding:14px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;background:var(--surface2)">
+              <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+                <div>
+                  <div style="font-weight:900">${t.usuario_nombre || 'Cajero'}</div>
+                  <div style="color:var(--muted);font-size:12px">Abierto desde ${horaAR(t.fecha_apertura)}</div>
+                </div>
+                <span class="badge badge-success">Activo</span>
+              </div>
+              <div class="grid-2" style="margin-top:12px">
+                <div><div class="metric-label">Ventas</div><strong>${Number(t.ventas || 0)}</strong></div>
+                <div><div class="metric-label">Facturado</div><strong>$${Number(t.facturado || 0).toLocaleString('es-AR')}</strong></div>
+              </div>
+            </div>`).join('') : '<p>No hay caja abierta ahora.</p>'}
+        </div>
+        <div class="card">
+          <div class="card-title">Ritmo de ventas de hoy</div>
+          <canvas id="chart-dashboard-horas" height="210"></canvas>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Ultimas ventas</div>
+          ${ventas.length === 0 ? '<p>Todavia no hay ventas registradas.</p>' : ventas.map(v => `
+            <div style="display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">
+              <div>
+                <strong>#${v.id}</strong>
+                <div style="font-size:12px;color:var(--muted)">${horaAR(v.created_at)} · ${v.cajero || 'Sin cajero'} · ${v.metodo_pago}</div>
+                <div style="font-size:12px;color:var(--muted)">${(v.items || []).slice(0, 2).map(i => `${i.nombre} ${formatearCantidad(i.cantidad, i.unidad_medida || 'unidad')}`).join(', ')}</div>
+              </div>
+              <strong style="color:var(--accent)">$${Number(v.total || 0).toLocaleString('es-AR')}</strong>
+            </div>`).join('')}
+        </div>
+        <div class="card">
+          <div class="card-title">Alertas de stock</div>
+          ${stock.length === 0 ? '<p>No hay productos con stock bajo.</p>' : stock.map(p => `
+            <div style="display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">
+              <div>
+                <strong>${p.nombre}</strong>
+                <div style="font-size:12px;color:var(--muted)">Minimo: ${formatearCantidad(p.stock_min, p.unidad_medida)}</div>
+              </div>
+              <strong style="color:var(--danger)">${formatearCantidad(p.stock, p.unidad_medida)}</strong>
+            </div>`).join('')}
+        </div>
+      </div>`;
+
+    const horas = data.ventasPorHora || [];
+    const labels = horas.map(h => `${String(h.hora).padStart(2, '0')}:00`);
+    const valores = horas.map(h => Number(h.facturado || 0));
+    new Chart(document.getElementById('chart-dashboard-horas').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{ label: 'Facturado', data: valores, borderColor: '#ffd400', backgroundColor: 'rgba(255,212,0,.18)', tension: .3, fill: true }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+  } catch(e) {
+    document.getElementById('main-content').innerHTML = '<div class="card">Error de conexion cargando dashboard</div>';
+  }
 }
 
 // ==================== POS ====================
