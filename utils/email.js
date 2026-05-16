@@ -9,17 +9,17 @@ async function enviarCredenciales({ nombre, email, pin, localNombre, rol }) {
   }
   try {
     await resend.emails.send({
-      from: 'KioscoManager <onboarding@resend.dev>',
+      from: 'Kivaro <onboarding@resend.dev>',
       to: email,
-      subject: `Bienvenido a KioscoManager - Tus credenciales de acceso`,
+      subject: `Bienvenido a Kivaro - Tus credenciales de acceso`,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
           <div style="background:#3b82f6;padding:20px;border-radius:10px;text-align:center;margin-bottom:20px">
-            <h1 style="color:white;margin:0">🏪 KioscoManager</h1>
-            <p style="color:#bfdbfe;margin:8px 0 0">Sistema de gestión para kioscos</p>
+            <h1 style="color:white;margin:0">🏪 Kivaro</h1>
+            <p style="color:#bfdbfe;margin:8px 0 0">Sistema de gestión para markets y kioscos</p>
           </div>
           <h2>¡Hola ${nombre}!</h2>
-          <p>Tu cuenta ha sido creada exitosamente en <strong>KioscoManager</strong>.</p>
+          <p>Tu cuenta ha sido creada exitosamente en <strong>Kivaro</strong>.</p>
           <div style="background:#f1f5f9;padding:20px;border-radius:8px;margin:20px 0">
             <h3 style="margin-top:0">📋 Tus credenciales de acceso:</h3>
             <p><strong>Local:</strong> ${localNombre}</p>

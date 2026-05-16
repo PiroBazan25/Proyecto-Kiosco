@@ -9,13 +9,13 @@ async function enviarAvisoVencimiento(email, nombre, localNombre, diasRestantes,
   if (!resend) return;
   try {
     await resend.emails.send({
-      from: 'KioscoManager <onboarding@resend.dev>',
+      from: 'Kivaro <onboarding@resend.dev>',
       to: email,
-      subject: `⚠️ Tu suscripción vence en ${diasRestantes} días - KioscoManager`,
+      subject: `⚠️ Tu suscripción vence en ${diasRestantes} días - Kivaro`,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
           <div style="background:#f59e0b;padding:20px;border-radius:10px;text-align:center;margin-bottom:20px">
-            <h1 style="color:white;margin:0">⚠️ KioscoManager</h1>
+            <h1 style="color:white;margin:0">⚠️ Kivaro</h1>
             <p style="color:#fef3c7;margin:8px 0 0">Aviso de vencimiento de suscripción</p>
           </div>
           <h2>Hola ${nombre}!</h2>
@@ -23,10 +23,10 @@ async function enviarAvisoVencimiento(email, nombre, localNombre, diasRestantes,
           <div style="background:#fef3c7;padding:20px;border-radius:8px;margin:20px 0">
             <p style="margin:0"><strong>Fecha de vencimiento:</strong> ${fechaVence}</p>
           </div>
-          <p>Para renovar tu suscripción y seguir usando KioscoManager contactá a tu administrador.</p>
+          <p>Para renovar tu suscripción y seguir usando Kivaro contactá a tu administrador.</p>
           <p style="color:#ef4444"><strong>Si no renovás antes de la fecha de vencimiento tu acceso será suspendido automáticamente.</strong></p>
           <hr style="margin:30px 0;border:none;border-top:1px solid #e2e8f0">
-          <p style="color:#94a3b8;font-size:12px">KioscoManager — Sistema de gestión para kioscos</p>
+          <p style="color:#94a3b8;font-size:12px">Kivaro — Sistema de gestión para markets y kioscos</p>
         </div>
       `
     });

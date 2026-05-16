@@ -57,7 +57,7 @@ router.post('/', verificarToken, async (req, res) => {
     );
 
     const localResult = await pool.query('SELECT nombre FROM locales WHERE id = $1', [localId]);
-    const localNombre = localResult.rows[0]?.nombre || 'KioscoManager';
+    const localNombre = localResult.rows[0]?.nombre || 'Kivaro';
 
     await enviarCredenciales({ nombre, email, pin, localNombre, rol });
 

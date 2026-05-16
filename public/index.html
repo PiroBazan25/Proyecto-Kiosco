@@ -3,61 +3,67 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>KioscoManager - Sistema Multitenant</title>
+<title>Kivaro - Sistema de market y kiosco</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--r:3px;--rl:4px}
-body{font-family:'Segoe UI',Impact,Arial Black,system-ui,sans-serif;background:#101010;transition:all .2s;letter-spacing:0}
-.light-theme,.dark-theme{--bg:#101010;--surface:#1d1d1d;--surface2:#2a2a2a;--border:#3b3520;--text:#fff8e7;--muted:#c8bfa8;--accent:#ffd400;--accent2:#f5e9c7;--accent3:#ffd400;--danger:#ff5a52;--success:#ffd400;--sidebar:#0b0b0b;--sidebar-text:#fff8e7}
+:root{--r:8px;--rl:12px}
+body{font-family:'Segoe UI',Impact,Arial Black,system-ui,sans-serif;background:#101010;transition:background .2s,color .2s;letter-spacing:0}
+.dark-theme{--bg:#101010;--surface:#1d1d1d;--surface2:#2a2a2a;--border:#3b3520;--text:#fff8e7;--muted:#c8bfa8;--accent:#ffd400;--accent-contrast:#151515;--accent2:#f5e9c7;--accent3:#ffd400;--danger:#ff5a52;--success:#ffd400;--sidebar:#0b0b0b;--sidebar-text:#fff8e7;--topbar:#1b1b1b;--input:#2a2a2a;--value-shadow:2px 2px 0 #000}
+.light-theme{--bg:#f3f6fb;--surface:#ffffff;--surface2:#eef3f8;--border:#d8e2ee;--text:#152033;--muted:#64748b;--accent:#2563eb;--accent-contrast:#ffffff;--accent2:#1e40af;--accent3:#f59e0b;--danger:#dc2626;--success:#16a34a;--sidebar:#ffffff;--sidebar-text:#1f2937;--topbar:#ffffff;--input:#ffffff;--value-shadow:none}
 body{background:var(--bg);color:var(--text)}
 .app{display:flex;min-height:100vh}
-.sidebar{width:250px;background:var(--sidebar);color:var(--sidebar-text);display:flex;flex-direction:column;transition:.2s;border-right:1px solid #302b1b}
-.sidebar-header{padding:18px 18px;border-bottom:1px solid #302b1b;text-transform:uppercase}
-.sidebar-header h2{font-size:20px;font-weight:900;text-shadow:2px 2px 0 #000}
-.nav-item{padding:13px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:.15s;margin:3px 8px;border-radius:0;text-transform:uppercase;font-size:12px;font-weight:900;color:#e9dfc4;border-left:3px solid transparent}
-.nav-item:hover{background:#242424;border-left-color:var(--accent)}
-.nav-item.active{background:#ffd400;color:#1a1a1a;border-left-color:#fff}
+.sidebar{width:250px;background:var(--sidebar);color:var(--sidebar-text);display:flex;flex-direction:column;transition:.2s;border-right:1px solid var(--border)}
+.sidebar-header{padding:18px 18px;border-bottom:1px solid var(--border);text-transform:uppercase}
+.sidebar-header h2{font-size:20px;font-weight:900;text-shadow:var(--value-shadow)}
+.nav-item{padding:13px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:.15s;margin:3px 8px;border-radius:var(--r);text-transform:uppercase;font-size:12px;font-weight:900;color:var(--sidebar-text);border-left:3px solid transparent}
+.nav-item:hover{background:var(--surface2);border-left-color:var(--accent)}
+.nav-item.active{background:var(--accent);color:var(--accent-contrast);border-left-color:var(--accent2)}
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-.topbar{background:#1b1b1b;padding:12px 24px;border-bottom:1px solid #302b1b;display:flex;justify-content:space-between;align-items:center;min-height:58px}
-.topbar h3{text-transform:uppercase;font-size:24px;font-weight:900;text-shadow:2px 2px 0 #000}
-.content{padding:24px;overflow-y:auto;flex:1;background:#101010}
-.card{background:var(--surface);border-radius:0;padding:18px;margin-bottom:16px;border:1px solid var(--border);box-shadow:0 0 0 1px rgba(255,212,0,.03)}
-.card-title{font-weight:900;margin-bottom:14px;font-size:15px;text-transform:uppercase;color:#fff8e7}
-.metric{background:var(--surface2);border-radius:0;padding:18px;border:1px solid var(--border);border-left:4px solid var(--accent)}
+.topbar{background:var(--topbar);padding:14px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:18px;min-height:64px;flex-wrap:wrap}
+.topbar h3{text-transform:uppercase;font-size:24px;font-weight:900;text-shadow:var(--value-shadow);line-height:1.15;min-width:0}
+#topbar-actions{margin-left:auto;display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;min-width:0}
+#topbar-actions>div{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#topbar-actions .btn{white-space:nowrap}
+.content{padding:26px 28px;overflow-y:auto;flex:1;background:var(--bg)}
+.content>*{max-width:100%}
+.card{background:var(--surface);border-radius:var(--rl);padding:20px;margin-bottom:18px;border:1px solid var(--border);box-shadow:0 0 0 1px rgba(255,212,0,.03);overflow-x:auto}
+.card-title{font-weight:900;margin-bottom:16px;font-size:15px;text-transform:uppercase;color:var(--text);display:flex;align-items:center;gap:8px;line-height:1.25}
+.card>p{line-height:1.55;margin:8px 0;color:var(--muted)}
+.metric{background:var(--surface2);border-radius:var(--rl);padding:18px;border:1px solid var(--border);border-left:4px solid var(--accent)}
 .metric-label{font-size:11px;text-transform:uppercase;color:var(--muted);font-weight:900}
-.metric-val{font-size:32px;font-weight:900;color:var(--accent);text-shadow:2px 2px 0 #000}
-.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.btn{padding:10px 16px;border-radius:0;border:1px solid var(--border);background:#242424;cursor:pointer;font-size:12px;transition:.1s;color:var(--text);text-transform:uppercase;font-weight:900}
+.metric-val{font-size:32px;font-weight:900;color:var(--accent);text-shadow:var(--value-shadow)}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.btn{padding:10px 16px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:12px;transition:.1s;color:var(--text);text-transform:uppercase;font-weight:900;line-height:1.2;min-height:38px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .btn:hover{border-color:var(--accent);transform:translateY(-1px)}
-.btn-primary{background:var(--accent);border-color:var(--accent);color:#151515}
-.btn-success{background:var(--success);border-color:var(--success);color:#151515}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast)}
+.btn-success{background:var(--success);border-color:var(--success);color:var(--accent-contrast)}
 .btn-danger{background:var(--danger);border-color:var(--danger);color:white}
-.btn-warning{background:var(--accent3);border-color:var(--accent3);color:#151515}
+.btn-warning{background:var(--accent3);border-color:var(--accent3);color:var(--accent-contrast)}
 .btn-sm{padding:4px 10px;font-size:12px}
-.inp{width:100%;padding:12px 14px;border:1px solid #2f2f2f;border-radius:0;background:#2a2a2a;color:var(--text);font-weight:700}
+.inp{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:var(--r);background:var(--input);color:var(--text);font-weight:700}
 .inp:focus{outline:none;border-color:var(--accent)}
 .lbl{font-size:11px;font-weight:600;margin-bottom:4px;display:block;color:var(--muted)}
 .pos-container{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:18px}
 .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
-.prod-card{background:#151515;border:1px solid #343434;border-radius:0;padding:14px;cursor:pointer;text-align:left;transition:.1s;min-height:120px;display:flex;flex-direction:column;justify-content:space-between}
+.prod-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px;cursor:pointer;text-align:left;transition:.1s;min-height:120px;display:flex;flex-direction:column;justify-content:space-between}
 .prod-card:hover{border-color:var(--accent);transform:translateY(-2px)}
-.prod-card .name{font-weight:900;font-size:15px;text-transform:uppercase;color:#fff8e7}
-.prod-card .price{color:var(--accent);font-weight:900;margin-top:10px;font-size:20px;text-shadow:1px 1px 0 #000}
+.prod-card .name{font-weight:900;font-size:15px;text-transform:uppercase;color:var(--text)}
+.prod-card .price{color:var(--accent);font-weight:900;margin-top:10px;font-size:20px;text-shadow:var(--value-shadow)}
 .prod-card .stock{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase}
 .ticket-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
-.qty-btn{width:30px;height:30px;border-radius:0;border:1px solid var(--border);background:#111;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--accent);font-weight:900}
-.calculadora{background:#111;border-radius:0;padding:12px;margin:10px 0;border:1px solid #302b1b}
-.calc-display{font-size:32px;font-weight:900;text-align:right;padding:10px;background:#070707;border-radius:0;margin-bottom:10px;font-family:monospace;color:var(--accent)}
+.qty-btn{width:30px;height:30px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--accent);font-weight:900}
+.calculadora{background:var(--surface2);border-radius:var(--rl);padding:12px;margin:10px 0;border:1px solid var(--border)}
+.calc-display{font-size:32px;font-weight:900;text-align:right;padding:10px;background:var(--bg);border-radius:var(--r);margin-bottom:10px;font-family:monospace;color:var(--accent)}
 .calc-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.calc-btn{padding:13px;border-radius:0;border:1px solid var(--border);background:#242424;cursor:pointer;font-size:16px;text-align:center;color:var(--text);font-weight:900}
-.calc-btn.enter{background:var(--success);color:#151515;border-color:var(--success)}
+.calc-btn{padding:13px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:16px;text-align:center;color:var(--text);font-weight:900}
+.calc-btn.enter{background:var(--success);color:var(--accent-contrast);border-color:var(--success)}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:1000}
-.modal{background:var(--surface);border-radius:0;padding:24px;width:500px;max-width:90vw;max-height:85vh;overflow:auto;border:1px solid var(--border)}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{padding:10px 8px;text-align:left;border-bottom:1px solid var(--border)}
+.modal{background:var(--surface);border-radius:var(--rl);padding:24px;width:500px;max-width:90vw;max-height:85vh;overflow:auto;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+th,td{padding:12px 10px;text-align:left;border-bottom:1px solid var(--border);vertical-align:middle}
 th{color:var(--muted);font-weight:600;font-size:11px}
 .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
 .badge-success{background:#dcfce7;color:#166534}
@@ -108,7 +114,7 @@ th{color:var(--muted);font-weight:600;font-size:11px}
     border-left:0;
     border-top:3px solid transparent;
   }
-  .nav-item.active{border-top-color:#fff;background:#111;color:var(--accent)}
+  .nav-item.active{border-top-color:var(--accent2);background:var(--accent);color:var(--accent-contrast)}
   .nav-item span{display:block!important;font-size:18px}
   .sidebar > div:last-child {
   display:none;
@@ -134,19 +140,23 @@ th{color:var(--muted);font-weight:600;font-size:11px}
     grid-template-columns: repeat(2, 1fr); 
   }
   .main{padding-bottom:76px}
-  .content { padding: 18px 14px; }
-  .topbar { padding: 10px 14px; position:sticky; top:0; z-index:800; }
-  .topbar h3{font-size:22px}
-  #topbar-actions{width:100%;margin-top:8px}
+  .content { padding: 18px 14px 94px; }
+  .topbar { padding: 12px 14px; position:sticky; top:0; z-index:800; gap:12px; }
+  .topbar h3{font-size:22px;width:100%}
+  #topbar-actions{width:100%;margin-left:0;justify-content:stretch;gap:8px}
   .topbar{align-items:flex-start;flex-direction:column}
-  #topbar-actions>div{width:100%!important}
+  #topbar-actions>div{width:100%!important;gap:8px}
+  #topbar-actions .btn{min-height:42px}
   #buscar-pos{width:100%!important}
+  .card{padding:16px;margin-bottom:14px}
+  .card-title{margin-bottom:14px}
+  .metric{padding:16px}
   .prod-card{min-height:150px;padding:14px}
   .prod-card .name{font-size:14px}
   .prod-card .price{font-size:22px}
   .pos-container>.card{position:sticky;bottom:76px;z-index:700;border-color:#5a4b12;box-shadow:0 -12px 30px rgba(0,0,0,.45)}
-  table { font-size: 11px; }
-  th, td { padding: 6px 4px; }
+  table { font-size: 12px; min-width:620px; }
+  th, td { padding: 10px 8px; }
   .modal { padding: 16px; }
   .calc-buttons { gap: 4px; }
   .calc-btn { padding: 10px; font-size: 14px; }
@@ -156,6 +166,10 @@ th{color:var(--muted);font-weight:600;font-size:11px}
   .grid-2, .grid-3, .grid-4 { 
     grid-template-columns: 1fr; 
   }
+  .topbar h3{font-size:20px}
+  #topbar-actions>button,#topbar-actions>.btn{width:100%}
+  #topbar-actions>div{display:grid!important;grid-template-columns:1fr;align-items:stretch}
+  .metric-val{font-size:28px}
   .nav-item span { display: none; }
 }
 </style>
@@ -170,12 +184,12 @@ th{color:var(--muted);font-weight:600;font-size:11px}
   <div style="background:#1d1d1d;border:1px solid #3b3520;padding:32px;width:400px;box-shadow:0 20px 60px rgba(0,0,0,.45)">
     <div style="text-align:center;margin-bottom:24px">
       <div style="font-size:48px">🏪</div>
-      <h1 style="text-transform:uppercase;text-shadow:2px 2px 0 #000">KioscoManager</h1>
-      <p style="color:#ffd400;text-transform:uppercase;font-weight:900;font-size:12px">Sistema multi-local</p>
+      <h1 style="text-transform:uppercase;text-shadow:2px 2px 0 #000">Kivaro</h1>
+      <p style="color:#ffd400;text-transform:uppercase;font-weight:900;font-size:12px">Sistema de market y kiosco</p>
     </div>
     <div>
       <div class="lbl">Usuario / Email</div>
-      <input class="inp" id="login-email" type="text" placeholder="ej: dueno@kiosco.com" style="margin-bottom:12px">
+      <input class="inp" id="login-email" type="text" placeholder="ej: dueno@kivaro.com" style="margin-bottom:12px">
       <div class="lbl">PIN</div>
       <input class="inp" id="login-pin" type="password" placeholder="PIN de acceso" style="margin-bottom:16px" onkeydown="if(event.key==='Enter')doLogin()">
       <button class="btn btn-primary" style="width:100%" onclick="doLogin()" id="btn-login">Ingresar</button>
@@ -189,7 +203,7 @@ th{color:var(--muted);font-weight:600;font-size:11px}
   <div class="app">
     <div class="sidebar">
       <div class="sidebar-header">
-        <h2>🏪 Kiosco<span style="color:#fbbf24">Manager</span></h2>
+        <h2>🏪 Kivaro</h2>
         <div style="font-size:12px;margin-top:8px" id="local-name-badge"></div>
       </div>
       <div style="flex:1;padding:12px 0">
@@ -206,6 +220,7 @@ th{color:var(--muted);font-weight:600;font-size:11px}
         <div class="nav-item" data-page="config" onclick="navigate('config')"><span>⚙️</span> Configuración</div>
         <div id="superadmin-panel" style="display:none">
           <div style="height:1px;background:rgba(255,255,255,.1);margin:12px 16px"></div>
+          <div class="nav-item" data-page="super-reportes" onclick="navigate('super-reportes')"><span>📈</span> Reportes globales</div>
           <div class="nav-item" data-page="locales" onclick="navigate('locales')"><span>🏢</span> Todos los Locales</div>
           <div class="nav-item" data-page="soporte" onclick="navigate('soporte')"><span>🛠️</span> Soporte</div>
         </div>
@@ -213,7 +228,7 @@ th{color:var(--muted);font-weight:600;font-size:11px}
       <div style="padding:16px;border-top:1px solid rgba(255,255,255,.1)">
   <div style="display:flex;justify-content:space-between;margin-bottom:12px">
     <span style="font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="user-name">Usuario</span>
-    <button class="btn btn-sm" onclick="toggleTheme()">🌓</button>
+    <button class="btn btn-sm" id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema">🌓</button>
   </div>
   <div id="turno-info" style="font-size:11px;color:#94a3b8;margin-bottom:8px"></div>
   <button class="btn btn-sm btn-warning" id="btn-cerrar-turno" style="width:100%;margin-bottom:6px;display:none" onclick="cerrarTurno()">🔒 Cerrar turno</button>
@@ -424,7 +439,7 @@ function navigate(page) {
   const activeEl = document.querySelector(`[data-page="${page}"]`);
   if (activeEl) activeEl.classList.add('active');
   const titles = { pos:'💰 POS / Caja', ventas:'📋 Historial de ventas', productos:'📦 Productos', stock:'📊 Control de Stock', proveedores:'🚚 Proveedores', usuarios:'👥 Usuarios', config:'⚙️ Configuración', locales:'🏢 Todos los Locales', soporte:'🛠️ Soporte Técnico' };
-  document.getElementById('page-title').innerText = titles[page] || page;
+  document.getElementById('page-title').innerText = page === 'super-reportes' ? 'Reportes globales' : (titles[page] || page);
   document.getElementById('topbar-actions').innerHTML = '';
   if (page === 'pos') renderPOS();
   else if (page === 'ventas') renderVentas();
@@ -433,6 +448,7 @@ function navigate(page) {
   else if (page === 'proveedores') renderProveedores();
   else if (page === 'usuarios') renderUsuarios();
   else if (page === 'config') renderConfig();
+  else if (page === 'super-reportes') renderSuperReportes();
   else if (page === 'locales') renderLocales();
   else if (page === 'soporte') renderSoporte();
   else if (page === 'turnos') renderHistorialTurnos();
@@ -748,7 +764,7 @@ function imprimirTicket(venta) {
   
   let contenido = `
     <div style="text-align:center;margin-bottom:8px">
-      <div style="font-size:16px;font-weight:bold">${local?.nombre || 'KioscoManager'}</div>
+      <div style="font-size:16px;font-weight:bold">${local?.nombre || 'Kivaro'}</div>
       ${local?.direccion ? `<div style="font-size:11px">${local.direccion}</div>` : ''}
       ${local?.telefono ? `<div style="font-size:11px">Tel: ${local.telefono}</div>` : ''}
       <div style="font-size:11px">${fecha} hs</div>
@@ -1600,6 +1616,104 @@ function guardarMensajeTicket() {
 }
 
 // ==================== SUPERADMIN ====================
+async function renderSuperReportes() {
+  if (currentUser?.rol !== 'superadmin') return;
+  const hoy = new Date().toISOString().split('T')[0];
+  const hace30 = new Date();
+  hace30.setDate(hace30.getDate() - 30);
+  const desde30 = hace30.toISOString().split('T')[0];
+  document.getElementById('topbar-actions').innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input type="date" class="inp" id="super-desde" style="width:150px" value="${desde30}">
+      <input type="date" class="inp" id="super-hasta" style="width:150px" value="${hoy}">
+      <button class="btn btn-primary" onclick="cargarSuperReportes()">Buscar</button>
+    </div>`;
+  document.getElementById('main-content').innerHTML = '<div class="card">Cargando reportes globales...</div>';
+  await cargarSuperReportes();
+}
+
+async function cargarSuperReportes() {
+  const desde = document.getElementById('super-desde')?.value || '';
+  const hasta = document.getElementById('super-hasta')?.value || '';
+  document.getElementById('main-content').innerHTML = '<div class="card">Cargando reportes globales...</div>';
+  try {
+    const res = await fetch(`${API}/api/reportes/superadmin?desde=${desde}&hasta=${hasta}`, { headers: getHeaders() });
+    const data = await res.json();
+    if (!res.ok) {
+      document.getElementById('main-content').innerHTML = '<div class="card">No se pudieron cargar los reportes globales</div>';
+      return;
+    }
+    const locales = data.locales || [];
+    const activos = data.totales?.activos || 0;
+    const facturado = Number(data.totales?.facturado || 0);
+    const ventas = Number(data.totales?.ventas || 0);
+    const mejor = locales[0];
+    document.getElementById('main-content').innerHTML = `
+      <div class="grid-4" style="margin-bottom:16px">
+        <div class="metric"><div class="metric-label">Negocios registrados</div><div class="metric-val">${data.totales?.locales || 0}</div></div>
+        <div class="metric"><div class="metric-label">Activos</div><div class="metric-val">${activos}</div></div>
+        <div class="metric"><div class="metric-label">Ventas del periodo</div><div class="metric-val">${ventas}</div></div>
+        <div class="metric"><div class="metric-label">Facturacion global</div><div class="metric-val">$${facturado.toLocaleString('es-AR')}</div></div>
+      </div>
+      <div class="grid-2" style="margin-bottom:16px">
+        <div class="card">
+          <div class="card-title">Facturacion por negocio</div>
+          <canvas id="chart-super-locales" height="220"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">Ventas por dia</div>
+          <canvas id="chart-super-dias" height="220"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Resumen de negocios</div>
+        ${mejor ? `<p>Mejor rendimiento: <strong>${mejor.nombre}</strong> con $${Number(mejor.facturado || 0).toLocaleString('es-AR')} facturados.</p>` : '<p>No hay negocios registrados.</p>'}
+        ${locales.length === 0 ? '' : `
+        <table>
+          <thead><tr><th>Negocio</th><th>Estado</th><th>Plan</th><th>Ventas</th><th>Facturado</th><th>Ticket prom.</th><th>Ultima venta</th></tr></thead>
+          <tbody>
+            ${locales.map(l => `
+              <tr>
+                <td><strong>${l.nombre}</strong></td>
+                <td><span class="badge ${l.suscripcion_activa ? 'badge-success' : 'badge-danger'}">${l.suscripcion_activa ? 'Activo' : 'Pausado'}</span></td>
+                <td>${l.plan || '-'}</td>
+                <td>${Number(l.ventas || 0)}</td>
+                <td>$${Number(l.facturado || 0).toLocaleString('es-AR')}</td>
+                <td>$${Number(l.ticket_promedio || 0).toLocaleString('es-AR')}</td>
+                <td>${l.ultima_venta ? formatearFechaCorta(l.ultima_venta) : '-'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`}
+      </div>`;
+
+    const topLocales = locales.slice(0, 8);
+    new Chart(document.getElementById('chart-super-locales').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: topLocales.map(l => l.nombre),
+        datasets: [{ label: 'Facturado', data: topLocales.map(l => Number(l.facturado || 0)), backgroundColor: '#ffd400' }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    const porFecha = {};
+    (data.ventasPorDia || []).forEach(row => {
+      const fecha = formatearFechaCorta(row.fecha);
+      porFecha[fecha] = (porFecha[fecha] || 0) + Number(row.facturado || 0);
+    });
+    new Chart(document.getElementById('chart-super-dias').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: Object.keys(porFecha),
+        datasets: [{ label: 'Facturado', data: Object.values(porFecha), borderColor: '#ffd400', backgroundColor: 'rgba(255,212,0,.2)', tension: .25, fill: true }]
+      },
+      options: { responsive: true }
+    });
+  } catch(e) {
+    document.getElementById('main-content').innerHTML = '<div class="card">Error de conexion cargando reportes globales</div>';
+  }
+}
+
 async function renderLocales() {
   if (currentUser?.rol !== 'superadmin') return;
   document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="modalLocal()">+ Nuevo local</button>`;
@@ -1627,10 +1741,10 @@ async function renderLocales() {
                 <td><span class="badge ${l.suscripcion_activa?'badge-success':'badge-danger'}">${l.suscripcion_activa?'Activo':'Vencido'}</span></td>
                 <td>${l.suscripcion_vence||'-'}</td>
                 <td>
-                  <button class="btn btn-sm" onclick="toggleSuscripcion(${l.id}, ${l.suscripcion_activa})">${l.suscripcion_activa?'⛔ Desactivar':'✅ Activar'}</button>
+                  <button class="btn btn-sm" onclick="toggleSuscripcion(${l.id}, ${l.suscripcion_activa})">${l.suscripcion_activa?'Pausar acceso':'Reactivar'}</button>
                   <button class="btn btn-sm" onclick="modalLocal(${l.id}, ${JSON.stringify(l).replace(/"/g, '&quot;')})">✏️</button>
                   <button class="btn btn-sm btn-primary" onclick="verUsuariosLocal(${l.id}, '${l.nombre}')">👥 Usuarios</button>
-                  <button class="btn btn-sm btn-danger" onclick="borrarLocal(${l.id}, '${l.nombre}')">🗑️ Borrar</button>
+                  <button class="btn btn-sm btn-danger" onclick="borrarLocal(${l.id}, '${l.nombre}')">Dar de baja</button>
                 </td>
               </tr>`).join('')}
           </tbody>
@@ -1732,19 +1846,27 @@ function renderSoporte() {
   document.getElementById('main-content').innerHTML = `
     <div class="card">
       <div class="card-title">🛠️ Soporte Técnico</div>
-      <p>📧 Email: soporte@kioscomanager.com</p>
-      <p style="margin-top:8px">📞 Tel: 0800-123-KIOSCO</p>
+      <p>📧 Email: soporte@kivaro.com</p>
+      <p style="margin-top:8px">📞 Tel: 0800-123-KIVARO</p>
     </div>`;
 }
 
 // ==================== UTILS ====================
 function cerrarModal() { document.getElementById('modal-root').innerHTML = ''; }
+function aplicarTema(theme) {
+  const tema = theme === 'light' ? 'light' : 'dark';
+  document.body.classList.toggle('light-theme', tema === 'light');
+  document.body.classList.toggle('dark-theme', tema === 'dark');
+  localStorage.setItem('km_theme', tema);
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = tema === 'light' ? '🌙' : '☀️';
+}
 function toggleTheme() {
-  document.body.classList.toggle('dark-theme');
-  document.body.classList.toggle('light-theme');
+  aplicarTema(document.body.classList.contains('dark-theme') ? 'light' : 'dark');
 }
 
 // Init
+aplicarTema(localStorage.getItem('km_theme') || 'dark');
 document.getElementById('login-email').value = '';
 document.getElementById('login-pin').value = '';
 document.getElementById('login-email').value = '';
@@ -2490,21 +2612,21 @@ function beep(tipo = 'cobrar') {
   }
 }
 async function borrarLocal(id, nombre) {
-  const ok = await confirmarAccion(`⚠️ ¿Borrar el local "${nombre}" y TODOS sus datos? Esta acción no se puede deshacer.`);
+  const ok = await confirmarAccion(`Dar de baja "${nombre}" elimina el local y TODOS sus datos. Esta accion no se puede deshacer.`);
   if (!ok) return;
-  const ok2 = await confirmarAccion(`¿Estás seguro? Se borrarán usuarios, ventas, productos y todo el historial de "${nombre}".`);
+  const ok2 = await confirmarAccion(`Confirmar baja definitiva: se eliminaran usuarios, emails, ventas, productos y todo el historial de "${nombre}".`);
   if (!ok2) return;
   try {
     const res = await fetch(`${API}/api/locales/${id}`, {
       method: 'DELETE',
       headers: getHeaders()
     });
-    if (!res.ok) { toast('Error al borrar local', 'error'); return; }
+    if (!res.ok) { toast('Error al dar de baja', 'error'); return; }
     beep('reset');
-    toast('✅ Local borrado correctamente', 'success');
+    toast('Local dado de baja correctamente', 'success');
     renderLocales();
   } catch(e) {
-    toast('Error de conexión', 'error');
+    toast('Error de conexion', 'error');
   }
 }
 async function borrarProveedor(id, nombre) {
