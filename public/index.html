@@ -11,6 +11,7 @@
 body{font-family:'Segoe UI',Impact,Arial Black,system-ui,sans-serif;background:#101010;transition:background .2s,color .2s;letter-spacing:0}
 .dark-theme{--bg:#101010;--surface:#1d1d1d;--surface2:#2a2a2a;--border:#3b3520;--text:#fff8e7;--muted:#c8bfa8;--accent:#ffd400;--accent-contrast:#151515;--accent2:#f5e9c7;--accent3:#ffd400;--danger:#ff5a52;--success:#ffd400;--sidebar:#0b0b0b;--sidebar-text:#fff8e7;--topbar:#1b1b1b;--input:#2a2a2a;--value-shadow:2px 2px 0 #000}
 .light-theme{--bg:#f3f6fb;--surface:#ffffff;--surface2:#eef3f8;--border:#d8e2ee;--text:#152033;--muted:#64748b;--accent:#2563eb;--accent-contrast:#ffffff;--accent2:#1e40af;--accent3:#f59e0b;--danger:#dc2626;--success:#16a34a;--sidebar:#ffffff;--sidebar-text:#1f2937;--topbar:#ffffff;--input:#ffffff;--value-shadow:none}
+html,body{max-width:100%;overflow-x:hidden}
 body{background:var(--bg);color:var(--text)}
 .app{display:flex;min-height:100vh}
 .sidebar{width:250px;background:var(--sidebar);color:var(--sidebar-text);display:flex;flex-direction:column;transition:.2s;border-right:1px solid var(--border)}
@@ -76,8 +77,9 @@ th{color:var(--muted);font-weight:600;font-size:11px}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 @media print{body *{visibility:hidden}#print-area,#print-area *{visibility:visible}#print-area{position:fixed;top:0;left:0;width:80mm;background:white;color:black;padding:8px;font-family:'Courier New',monospace}}
 @media (max-width: 768px) {
+  body{font-size:14px}
   .app { flex-direction: column; }
-  .sidebar { 
+  .sidebar {
     width: 100%;
     order: 2;
     position: fixed;
@@ -92,21 +94,21 @@ th{color:var(--muted);font-weight:600;font-size:11px}
     border-top: 1px solid #403617;
     overflow-x: auto;
   }
-  .sidebar-header { 
+  .sidebar-header {
     display:none;
   }
-  .sidebar > div:nth-child(2) { 
-    display: flex; 
+  .sidebar > div:nth-child(2) {
+    display: flex;
     flex-wrap: nowrap;
     gap: 0;
     width: max-content;
     padding: 0;
   }
-  .nav-item { 
-    padding: 10px 9px;
-    font-size: 10px;
+  .nav-item {
+    padding: 9px 7px;
+    font-size: 9px;
     margin: 0;
-    min-width: 76px;
+    min-width: 68px;
     height: 74px;
     justify-content:center;
     flex-direction:column;
@@ -126,51 +128,63 @@ th{color:var(--muted);font-weight:600;font-size:11px}
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-  .pos-container { 
-    grid-template-columns: 1fr; 
+  .pos-container { grid-template-columns: minmax(0, 1fr); gap:12px; }
+  .product-grid {
+    grid-template-columns: repeat(2, minmax(128px, 1fr));
+    gap:10px;
   }
-  .product-grid { 
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap:12px;
-  }
-  .grid-2, .grid-3, .grid-4 { 
-    grid-template-columns: 1fr 1fr; 
-  }
-  .grid-4 { 
-    grid-template-columns: repeat(2, 1fr); 
+  .grid-2, .grid-3, .grid-4 {
+    grid-template-columns: 1fr;
+    gap:10px;
   }
   .main{padding-bottom:76px}
-  .content { padding: 18px 14px 94px; }
-  .topbar { padding: 12px 14px; position:sticky; top:0; z-index:800; gap:12px; }
-  .topbar h3{font-size:22px;width:100%}
+  .content { padding: 12px 10px 92px; overflow-x:hidden; }
+  .topbar { padding: 10px 12px; position:sticky; top:0; z-index:800; gap:8px; min-height:auto; }
+  .topbar h3{font-size:18px;width:100%;line-height:1.15}
   #topbar-actions{width:100%;margin-left:0;justify-content:stretch;gap:8px}
   .topbar{align-items:flex-start;flex-direction:column}
   #topbar-actions>div{width:100%!important;gap:8px}
-  #topbar-actions .btn{min-height:42px}
+  #topbar-actions .btn{min-height:38px}
   #buscar-pos{width:100%!important}
-  .card{padding:16px;margin-bottom:14px}
-  .card-title{margin-bottom:14px}
-  .metric{padding:16px}
-  .prod-card{min-height:150px;padding:14px}
-  .prod-card .name{font-size:14px}
-  .prod-card .price{font-size:22px}
-  .pos-container>.card{position:sticky;bottom:76px;z-index:700;border-color:#5a4b12;box-shadow:0 -12px 30px rgba(0,0,0,.45)}
-  table { font-size: 12px; min-width:620px; }
-  th, td { padding: 10px 8px; }
+  .btn{font-size:11px;padding:9px 12px;min-height:36px}
+  .btn-sm{font-size:10px;padding:6px 8px}
+  .inp{padding:10px 11px;font-size:14px}
+  .card{padding:13px;margin-bottom:12px;border-radius:10px}
+  .card-title{margin-bottom:12px;font-size:13px}
+  .metric{padding:13px}
+  .metric-label{font-size:10px}
+  .metric-val{font-size:24px;line-height:1.05;overflow-wrap:anywhere}
+  .prod-card{min-height:118px;padding:11px}
+  .prod-card .name{font-size:12px;line-height:1.2}
+  .prod-card .price{font-size:17px}
+  .prod-card .stock{font-size:10px}
+  .ticket-item{gap:6px;font-size:12px}
+  .qty-btn{width:26px;height:26px}
+  .calc-display{font-size:24px}
+  .pos-container>.card{position:static;border-color:var(--border);box-shadow:none}
+  table { font-size: 11px; min-width:520px; }
+  th, td { padding: 8px 6px; }
   .modal { padding: 16px; }
   .calc-buttons { gap: 4px; }
   .calc-btn { padding: 10px; font-size: 14px; }
 }
 
 @media (max-width: 480px) {
-  .grid-2, .grid-3, .grid-4 { 
-    grid-template-columns: 1fr; 
+  .grid-2, .grid-3, .grid-4 {
+    grid-template-columns: 1fr;
   }
-  .topbar h3{font-size:20px}
+  .topbar h3{font-size:17px}
   #topbar-actions>button,#topbar-actions>.btn{width:100%}
   #topbar-actions>div{display:grid!important;grid-template-columns:1fr;align-items:stretch}
-  .metric-val{font-size:28px}
+  .metric-val{font-size:22px}
   .nav-item span { display: none; }
+  .product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+@media (max-width: 380px) {
+  .content{padding-left:8px;padding-right:8px}
+  .product-grid{grid-template-columns:1fr}
+  .nav-item{min-width:62px;font-size:8px}
 }
 </style>
 </head>
@@ -193,6 +207,7 @@ th{color:var(--muted);font-weight:600;font-size:11px}
       <div class="lbl">PIN</div>
       <input class="inp" id="login-pin" type="password" placeholder="PIN de acceso" style="margin-bottom:16px" onkeydown="if(event.key==='Enter')doLogin()">
       <button class="btn btn-primary" style="width:100%" onclick="doLogin()" id="btn-login">Ingresar</button>
+      <a class="btn" href="/planes.html" style="width:100%;margin-top:10px;text-decoration:none">Ver planes</a>
       <div id="login-error" style="color:#ef4444;text-align:center;margin-top:12px;font-size:13px"></div>
     </div>
   </div>
@@ -369,8 +384,8 @@ async function doLogin() {
 
     localStorage.setItem('km_token', data.token);
     currentUser = data.usuario;
-    currentLocal = data.usuario.local_id ? { 
-      id: data.usuario.local_id, 
+    currentLocal = data.usuario.local_id ? {
+      id: data.usuario.local_id,
       nombre: data.usuario.local_nombre,
       config: { intereses: { 1: 0, 3: 5, 6: 10 }, descuentos: { activado: false, tipo: 'porcentaje', valor: 0 }, mensajeTicket: '¡Gracias por su compra!' }
     } : null;
@@ -706,7 +721,7 @@ function buscarPorCodigoPOS(codigo) {
 
 function filterProducts(q) {
   if (!q) { renderProductGrid(productosCache); return; }
-  const prods = productosCache.filter(p => 
+  const prods = productosCache.filter(p =>
     p.nombre.toLowerCase().includes(q.toLowerCase()) ||
     (p.cod_barras && p.cod_barras.includes(q))
   );
@@ -792,7 +807,7 @@ async function limpiarTicket() {
 }
 
 async function confirmarPago() {
-  if (currentTicket.length === 0) { 
+  if (currentTicket.length === 0) {
     beep('error');
     toast('Agregá productos al ticket', 'error'); return; }
   let subtotal = currentTicket.reduce((s, i) => s + i.precio * i.cantidad, 0);
@@ -809,9 +824,9 @@ async function confirmarPago() {
   if (selectedPayment === 'efectivo') {
   const pagoStr = calcValue.replace(/\./g, '');
   const pago = parseInt(pagoStr);
-  if (calcValue !== '0' && !isNaN(pago) && pago < total) { 
-    toast(`Monto insuficiente. Total: $${Math.round(total).toLocaleString('es-AR')}`, 'error'); 
-    return; 
+  if (calcValue !== '0' && !isNaN(pago) && pago < total) {
+    toast(`Monto insuficiente. Total: $${Math.round(total).toLocaleString('es-AR')}`, 'error');
+    return;
   }
 }
 
@@ -860,7 +875,7 @@ function imprimirTicket(venta) {
     hour: '2-digit', minute: '2-digit', hour12: false,
     timeZone: 'America/Argentina/Buenos_Aires'
   });
-  
+
   let contenido = `
     <div style="text-align:center;margin-bottom:8px">
       <div style="font-size:16px;font-weight:bold">${local?.nombre || 'Kivaro'}</div>
@@ -902,14 +917,14 @@ function imprimirTicket(venta) {
     printArea.style.display = 'none';
   }, 300);
   return;
-  
+
   // Usamos concatenación simple para evitar el error de la imagen anterior
   win.document.write('<html><head><title>Ticket</title>');
   win.document.write('<style>@page { size: auto; margin: 0mm; } body { margin: 10mm; font-family: sans-serif; width: 280px; }</style>');
   win.document.write('</head><body>');
   win.document.write(contenido);
   win.document.write('</body></html>');
-  
+
   win.document.close();
 
   setTimeout(() => {
@@ -965,8 +980,8 @@ function imprimirTicket(venta) {
         <title>Ticket</title>
         <style>
           * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { 
-            font-family: 'Courier New', monospace; 
+          body {
+            font-family: 'Courier New', monospace;
             font-size: 13px;
             width: 80mm;
             padding: 8px;
@@ -1000,11 +1015,11 @@ function imprimirTicket(venta) {
   try {
     const d = new Date(fechaStr);
     if (isNaN(d.getTime())) return fechaStr;
-    return d.toLocaleTimeString('es-AR', { 
+    return d.toLocaleTimeString('es-AR', {
       timeZone: 'America/Argentina/Buenos_Aires',
-      hour: '2-digit', 
-      minute: '2-digit', 
-      hour12: false 
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
     });
   } catch(e) {
     return fechaStr;
@@ -1016,11 +1031,11 @@ function fechaHoraAR(fechaStr) {
   try {
     const d = new Date(fechaStr);
     if (isNaN(d.getTime())) return fechaStr;
-    return d.toLocaleString('es-AR', { 
+    return d.toLocaleString('es-AR', {
       timeZone: 'America/Argentina/Buenos_Aires',
       hour12: false,
       day: '2-digit',
-      month: '2-digit', 
+      month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
@@ -1037,7 +1052,7 @@ function fechaHoraAR(fechaStr) {
 async function renderVentas() {
   // Esto obtiene la fecha real de tu PC en formato YYYY-MM-DD
   const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
-  
+
   const haceTreintaDias = new Date();
   haceTreintaDias.setDate(haceTreintaDias.getDate() - 30);
   const desde30 = haceTreintaDias.toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
@@ -1089,7 +1104,7 @@ async function buscarVentas(todo = false) {
  const porDia = {};
   ventas.forEach(v => {
     // Agrupación original por fecha local
-    const fecha = new Date(v.created_at).toLocaleDateString('en-CA'); 
+    const fecha = new Date(v.created_at).toLocaleDateString('en-CA');
     if (!porDia[fecha]) porDia[fecha] = [];
     porDia[fecha].push(v);
   });
@@ -1125,8 +1140,8 @@ async function buscarVentas(todo = false) {
           ${ventasDia.map(v => `
             <tr>
               <td>${new Date(v.created_at).toLocaleTimeString('es-AR', {
-                    hour: '2-digit', 
-                    minute: '2-digit', 
+                    hour: '2-digit',
+                    minute: '2-digit',
                     hour12: false, // <-- Esto fuerza el formato 24hs
                     timeZone: 'America/Argentina/Buenos_Aires'
               })}</td>
@@ -1525,18 +1540,18 @@ async function renderUsuarios() {
     document.getElementById('main-content').innerHTML = '<div class="card">⚠️ Sin permiso</div>';
     return;
   }
-  
+
   const esDueno = currentUser.rol === 'admin_local';
   document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="modalUsuario()">+ Nuevo ${esDueno ? 'cajero' : 'usuario'}</button>`;
   document.getElementById('main-content').innerHTML = '<div class="card">Cargando usuarios...</div>';
-  
+
   try {
     const res = await fetch(`${API}/api/usuarios`, { headers: getHeaders() });
     const usuarios = await res.json();
-    
+
     // El dueño solo ve cajeros
     const lista = esDueno ? usuarios.filter(u => u.rol === 'cajero') : usuarios;
-    
+
     document.getElementById('main-content').innerHTML = `
       <div class="card">
         <div class="card-title">👥 ${esDueno ? 'Cajeros del local' : 'Usuarios'}</div>
@@ -1944,9 +1959,13 @@ async function toggleSuscripcion(id, activa) {
 function renderSoporte() {
   document.getElementById('main-content').innerHTML = `
     <div class="card">
-      <div class="card-title">🛠️ Soporte Técnico</div>
-      <p>📧 Email: soporte@kivaro.com</p>
-      <p style="margin-top:8px">📞 Tel: 0800-123-KIVARO</p>
+      <div class="card-title">Soporte Kivaro</div>
+      <p><strong>WhatsApp:</strong> +54 9 380 434-5006</p>
+      <p><strong>Email:</strong> piro2594@gmail.com</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+        <a class="btn btn-primary" href="https://wa.me/5493804345006?text=Hola%2C%20necesito%20soporte%20con%20Kivaro" target="_blank" rel="noopener">Contactar por WhatsApp</a>
+        <a class="btn" href="mailto:piro2594@gmail.com?subject=Soporte%20Kivaro">Enviar email</a>
+      </div>
     </div>`;
 }
 
@@ -1976,11 +1995,11 @@ document.addEventListener('keydown', function(e) {
   const posActivo = document.getElementById('product-grid-pos');
   const calcDisplay = document.getElementById('calc-display');
   if (!posActivo || !calcDisplay) return;
-  
+
   // Si hay un modal abierto no hacer nada
   const modalRoot = document.getElementById('modal-root');
   if (modalRoot && modalRoot.innerHTML.trim() !== '') return;
-  
+
   // Si el foco está en un input no hacer nada
   const tagActivo = document.activeElement.tagName;
   if (tagActivo === 'INPUT' || tagActivo === 'TEXTAREA' || tagActivo === 'SELECT') return;
@@ -2182,9 +2201,9 @@ function formatearFechaCorta(fecha) {
 async function cargarReportes() {
   const desde = document.getElementById('reporte-desde')?.value || '';
   const hasta = document.getElementById('reporte-hasta')?.value || '';
-  
+
   document.getElementById('main-content').innerHTML = '<div class="card">Cargando reportes...</div>';
-  
+
   try {
     let url = `${API}/api/reportes/dashboard`;
     if (desde || hasta) url += `?desde=${desde}&hasta=${hasta}`;
@@ -2637,7 +2656,7 @@ function beep(tipo = 'cobrar') {
   const gain = ctx.createGain();
   osc.connect(gain);
   gain.connect(ctx.destination);
-  
+
   if (tipo === 'cobrar') {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(523, ctx.currentTime);
@@ -2785,7 +2804,7 @@ async function cobrarConMP() {
           <h3 style="margin-bottom:8px">💳 Cobrar con MercadoPago</h3>
           <p style="color:var(--muted);margin-bottom:16px">Total: <strong>$${total.toLocaleString('es-AR')}</strong></p>
           <div style="margin-bottom:16px">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.init_point)}" 
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.init_point)}"
                  style="width:200px;height:200px;border:1px solid var(--border);border-radius:8px">
           </div>
           <p style="font-size:13px;color:var(--muted);margin-bottom:16px">El cliente escanea el QR con la app de MercadoPago</p>
@@ -2817,7 +2836,7 @@ async function borrarCliente(id, nombre) {
     renderClientes();
   } catch(e) { toast('Error de conexión', 'error'); }
 }
-  
+
 </script>
 </body>
 </html>

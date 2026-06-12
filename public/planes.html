@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kivaro - Planes para markets y kioscos</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{max-width:100%;overflow-x:hidden}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d0d0d;color:#fff8e7;line-height:1.45}
+a{color:inherit}
+.wrap{width:min(1120px,calc(100% - 32px));margin:0 auto}
+.hero{min-height:88vh;display:grid;grid-template-columns:1fr 1fr;gap:34px;align-items:center;padding:38px 0 22px}
+.brand{font-size:14px;font-weight:900;color:#ffd400;text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
+h1{font-size:clamp(38px,7vw,76px);line-height:.95;text-transform:uppercase;text-shadow:3px 3px 0 #000;margin-bottom:18px}
+.lead{font-size:20px;color:#d8cfb8;max-width:620px;margin-bottom:24px}
+.hero-actions{display:flex;gap:12px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:12px 18px;border:1px solid #4a421f;border-radius:10px;background:#222;color:#fff8e7;text-decoration:none;font-weight:900;text-transform:uppercase;cursor:pointer}
+.btn-primary{background:#ffd400;color:#151515;border-color:#ffd400}
+.hero-img{width:100%;border-radius:18px;border:1px solid #3b3520;box-shadow:0 26px 80px rgba(0,0,0,.55)}
+.section{padding:34px 0}
+.section-title{font-size:34px;text-transform:uppercase;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.plan{background:#1c1c1c;border:1px solid #3b3520;border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.plan.featured{border-color:#ffd400;box-shadow:0 0 0 1px rgba(255,212,0,.35)}
+.plan h2{font-size:24px;text-transform:uppercase}
+.price{font-size:38px;font-weight:900;color:#ffd400}
+.price small{font-size:13px;color:#d8cfb8}
+ul{list-style:none;display:grid;gap:10px;color:#e7ddc2}
+li:before{content:'✓';color:#ffd400;font-weight:900;margin-right:8px}
+.form-card{background:#181818;border:1px solid #3b3520;border-radius:16px;padding:22px}
+.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+label{display:block;font-size:12px;color:#c8bfa8;text-transform:uppercase;font-weight:800;margin-bottom:5px}
+input,select{width:100%;padding:13px;border-radius:10px;border:1px solid #3b3520;background:#252525;color:#fff8e7;font-weight:700}
+.status{margin-top:12px;color:#ffd400;font-weight:800;min-height:22px}
+.support{display:flex;justify-content:space-between;gap:18px;align-items:center;background:#ffd400;color:#151515;border-radius:16px;padding:22px;margin-bottom:30px}
+.support h2{font-size:26px;text-transform:uppercase}
+.muted{color:#c8bfa8}
+.support .muted{color:#463d10}
+footer{border-top:1px solid #3b3520;padding:24px 0;color:#c8bfa8}
+@media(max-width:850px){
+  body{font-size:14px}
+  .wrap{width:min(100% - 24px,1120px)}
+  .hero{grid-template-columns:1fr;min-height:auto;padding-top:24px}
+  h1{font-size:34px;line-height:1}
+  .lead{font-size:16px}
+  .hero-actions .btn{width:100%}
+  .section{padding:24px 0}
+  .section-title{font-size:24px}
+  .grid{grid-template-columns:1fr}
+  .plan{padding:16px;border-radius:12px}
+  .plan h2{font-size:19px}
+  .price{font-size:30px}
+  .form-grid{grid-template-columns:1fr}
+  .form-card{padding:16px}
+  input,select{padding:11px;font-size:14px}
+  .support{align-items:flex-start;flex-direction:column}
+}
+
+@media(max-width:380px){
+  h1{font-size:30px}
+  .price{font-size:26px}
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <div class="brand">Kivaro POS</div>
+      <h1>Sistema de ventas para markets y kioscos</h1>
+      <p class="lead">Controlá ventas, stock, caja, cajeros y reportes desde cualquier lugar. Ideal para negocios que quieren vender más ordenados.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#planes">Ver planes</a>
+        <a class="btn" href="https://wa.me/5493804345006?text=Hola%2C%20quiero%20contratar%20Kivaro" target="_blank" rel="noopener">Hablar por WhatsApp</a>
+      </div>
+    </div>
+    <img class="hero-img" src="/assets/kivaro-comercial.png" alt="Kivaro software de ventas para markets y kioscos">
+  </section>
+
+  <section class="section" id="planes">
+    <h2 class="section-title">Planes</h2>
+    <div class="grid">
+      <article class="plan">
+        <h2>Instalación</h2>
+        <div class="price">$25.000 <small>única vez</small></div>
+        <ul>
+          <li>Configuración inicial</li>
+          <li>Alta del negocio</li>
+          <li>Primer usuario dueño</li>
+          <li>Acompañamiento de arranque</li>
+        </ul>
+      </article>
+      <article class="plan">
+        <h2>Básico</h2>
+        <div class="price">$100.000 <small>/ mes</small></div>
+        <ul>
+          <li>POS y ventas</li>
+          <li>Productos y stock básico</li>
+          <li>Clientes y fiado</li>
+          <li>Turnos y caja</li>
+          <li>Hasta 2 cajeros</li>
+          <li>Reportes básicos</li>
+        </ul>
+        <button class="btn btn-primary" onclick="seleccionarPlan('basico')">Pagar Básico</button>
+      </article>
+      <article class="plan featured">
+        <h2>Premium</h2>
+        <div class="price">$200.000 <small>/ mes</small></div>
+        <ul>
+          <li>Todo lo del Básico</li>
+          <li>Dashboard mobile del dueño</li>
+          <li>Reportes avanzados con gráficos</li>
+          <li>Importación CSV/Excel</li>
+          <li>Compras y proveedores</li>
+          <li>Lector de código de barras</li>
+          <li>MercadoPago QR y soporte prioritario</li>
+        </ul>
+        <button class="btn btn-primary" onclick="seleccionarPlan('premium')">Pagar Premium</button>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="form-card">
+      <h2 class="section-title">Contratar Kivaro</h2>
+      <p class="muted" style="margin-bottom:16px">Completá tus datos y pagá el plan elegido con MercadoPago.</p>
+      <div class="form-grid">
+        <div><label>Plan</label><select id="plan"><option value="basico">Básico - $100.000/mes</option><option value="premium">Premium - $200.000/mes</option></select></div>
+        <div><label>Nombre</label><input id="nombre" placeholder="Tu nombre"></div>
+        <div><label>Email</label><input id="email" type="email" placeholder="tu@email.com"></div>
+        <div><label>WhatsApp</label><input id="telefono" placeholder="+54 9 ..."></div>
+        <div><label>Nombre del negocio</label><input id="negocio" placeholder="Market / kiosco"></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+        <button class="btn btn-primary" onclick="pagarPlan()">Pagar con MercadoPago</button>
+        <a class="btn" href="mailto:piro2594@gmail.com?subject=Quiero%20contratar%20Kivaro">Consultar por email</a>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+  </section>
+
+  <section class="support">
+    <div>
+      <h2>Soporte Kivaro</h2>
+      <p class="muted">Te ayudamos a instalar, configurar y empezar a vender.</p>
+    </div>
+    <div>
+      <strong>WhatsApp:</strong> +54 9 380 434-5006<br>
+      <strong>Email:</strong> piro2594@gmail.com
+    </div>
+  </section>
+</main>
+<footer>
+  <div class="wrap">Kivaro - Sistema de market y kiosco</div>
+</footer>
+<script>
+const params = new URLSearchParams(location.search);
+if (params.get('estado')) {
+  const estado = params.get('estado');
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('status').textContent = estado === 'aprobado'
+      ? 'Pago recibido. Soporte Kivaro se va a contactar para activar tu cuenta.'
+      : estado === 'pendiente'
+        ? 'Tu pago quedó pendiente. Te contactamos cuando MercadoPago lo confirme.'
+        : 'No se pudo confirmar el pago. Podés intentar nuevamente o escribir por WhatsApp.';
+  });
+}
+
+function seleccionarPlan(plan) {
+  document.getElementById('plan').value = plan;
+  document.getElementById('nombre').focus();
+  location.hash = '';
+}
+
+async function pagarPlan() {
+  const status = document.getElementById('status');
+  const body = {
+    plan: document.getElementById('plan').value,
+    nombre: document.getElementById('nombre').value.trim(),
+    email: document.getElementById('email').value.trim(),
+    telefono: document.getElementById('telefono').value.trim(),
+    negocio: document.getElementById('negocio').value.trim()
+  };
+  if (!body.nombre || !body.email || !body.telefono || !body.negocio) {
+    status.textContent = 'Completá todos los datos para continuar.';
+    return;
+  }
+  status.textContent = 'Creando pago seguro...';
+  try {
+    const res = await fetch('/api/pagos/planes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.init_point) {
+      status.textContent = data.error || 'No se pudo crear el pago.';
+      return;
+    }
+    location.href = data.init_point;
+  } catch(e) {
+    status.textContent = 'Error de conexión. Escribinos por WhatsApp.';
+  }
+}
+</script>
+</body>
+</html>
