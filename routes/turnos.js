@@ -40,8 +40,8 @@ router.post('/cerrar', verificarToken, async (req, res) => {
     }
     const t = turno.rows[0];
     const ventas = await pool.query(
-      'SELECT COUNT(*) as cantidad, COALESCE(SUM(total),0) as total FROM ventas WHERE turno_id = $1',
-      [t.id]
+      'SELECT COUNT(*) as cantidad, COALESCE(SUM(total),0) as total FROM ventas WHERE turno_id = $1 AND local_id = $2',
+      [t.id, req.usuario.local_id]
     );
     const { monto_cierre } = req.body;
     const result = await pool.query(
@@ -102,10 +102,10 @@ router.get('/historial', verificarToken, async (req, res) => {
           )) as items
          FROM ventas v
          LEFT JOIN venta_items vi ON vi.venta_id = v.id
-         WHERE v.turno_id = $1
+         WHERE v.turno_id = $1 AND v.local_id = $2
          GROUP BY v.id
          ORDER BY v.created_at`,
-        [t.id]
+        [t.id, req.usuario.local_id]
       );
       return { ...t, ventas: ventas.rows };
     }));

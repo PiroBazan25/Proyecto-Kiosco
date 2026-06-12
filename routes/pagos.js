@@ -13,10 +13,10 @@ router.post('/planes', async (req, res) => {
   try {
     const accessToken = process.env.KIVARO_MP_ACCESS_TOKEN || process.env.MP_ACCESS_TOKEN;
     if (!accessToken) {
-      return res.status(500).json({ error: 'Falta configurar KIVARO_MP_ACCESS_TOKEN en Railway' });
+      return res.status(500).json({ error: 'Falta configurar KIVARO_MP_ACCESS_TOKEN en el servidor' });
     }
     const { plan, nombre, email, telefono, negocio } = req.body;
-    if (!['basico', 'premium'].includes(plan)) {
+    if (!['prueba', 'basico', 'premium'].includes(plan)) {
       return res.status(400).json({ error: 'Plan invalido' });
     }
     if (!nombre || !email || !telefono || !negocio) {

@@ -30,6 +30,7 @@ async function crearOrdenQR(accessToken, items, total, externalReference) {
 
 async function crearPagoPlan(accessToken, plan, comprador, baseUrl) {
   const precios = {
+    prueba: { nombre: 'Alta y prueba inicial Kivaro', precio: 30000 },
     basico: { nombre: 'Plan Basico Kivaro', precio: 100000 },
     premium: { nombre: 'Plan Premium Kivaro', precio: 200000 }
   };

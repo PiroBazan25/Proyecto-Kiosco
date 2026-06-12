@@ -69,7 +69,7 @@ footer{border-top:1px solid #3b3520;padding:24px 0;color:#c8bfa8}
     <div>
       <div class="brand">Kivaro POS</div>
       <h1>Sistema de ventas para markets y kioscos</h1>
-      <p class="lead">Controlá ventas, stock, caja, cajeros y reportes desde cualquier lugar. Ideal para negocios que quieren vender más ordenados.</p>
+      <p class="lead">Caja en computadora para vender en el local y control del dueño desde el celular. Ideal para negocios que quieren ordenar ventas, stock y reportes.</p>
       <div class="hero-actions">
         <a class="btn btn-primary" href="#planes">Ver planes</a>
         <a class="btn" href="https://wa.me/5493804345006?text=Hola%2C%20quiero%20contratar%20Kivaro" target="_blank" rel="noopener">Hablar por WhatsApp</a>
@@ -82,14 +82,16 @@ footer{border-top:1px solid #3b3520;padding:24px 0;color:#c8bfa8}
     <h2 class="section-title">Planes</h2>
     <div class="grid">
       <article class="plan">
-        <h2>Instalación</h2>
-        <div class="price">$25.000 <small>única vez</small></div>
+        <h2>Alta + prueba inicial</h2>
+        <div class="price">$30.000 <small>por arranque</small></div>
         <ul>
           <li>Configuración inicial</li>
           <li>Alta del negocio</li>
           <li>Primer usuario dueño</li>
           <li>Acompañamiento de arranque</li>
+          <li>Luego decidís si seguís con un plan mensual</li>
         </ul>
+        <button class="btn btn-primary" onclick="seleccionarPlan('prueba')">Pagar prueba</button>
       </article>
       <article class="plan">
         <h2>Básico</h2>
@@ -109,7 +111,7 @@ footer{border-top:1px solid #3b3520;padding:24px 0;color:#c8bfa8}
         <div class="price">$200.000 <small>/ mes</small></div>
         <ul>
           <li>Todo lo del Básico</li>
-          <li>Dashboard mobile del dueño</li>
+          <li>Dashboard del dueño para celular</li>
           <li>Reportes avanzados con gráficos</li>
           <li>Importación CSV/Excel</li>
           <li>Compras y proveedores</li>
@@ -124,9 +126,9 @@ footer{border-top:1px solid #3b3520;padding:24px 0;color:#c8bfa8}
   <section class="section">
     <div class="form-card">
       <h2 class="section-title">Contratar Kivaro</h2>
-      <p class="muted" style="margin-bottom:16px">Completá tus datos y pagá el plan elegido con MercadoPago.</p>
+      <p class="muted" style="margin-bottom:16px">Completá tus datos, pagá la prueba inicial o consultá por WhatsApp. El alta del local se hace manualmente para dejarlo bien configurado.</p>
       <div class="form-grid">
-        <div><label>Plan</label><select id="plan"><option value="basico">Básico - $100.000/mes</option><option value="premium">Premium - $200.000/mes</option></select></div>
+        <div><label>Plan</label><select id="plan"><option value="prueba">Alta + prueba inicial - $30.000</option><option value="basico">Básico - $100.000/mes</option><option value="premium">Premium - $200.000/mes</option></select></div>
         <div><label>Nombre</label><input id="nombre" placeholder="Tu nombre"></div>
         <div><label>Email</label><input id="email" type="email" placeholder="tu@email.com"></div>
         <div><label>WhatsApp</label><input id="telefono" placeholder="+54 9 ..."></div>
@@ -134,6 +136,7 @@ footer{border-top:1px solid #3b3520;padding:24px 0;color:#c8bfa8}
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
         <button class="btn btn-primary" onclick="pagarPlan()">Pagar con MercadoPago</button>
+        <button class="btn" onclick="consultarWhatsApp()">Consultar por WhatsApp</button>
         <a class="btn" href="mailto:piro2594@gmail.com?subject=Quiero%20contratar%20Kivaro">Consultar por email</a>
       </div>
       <div class="status" id="status"></div>
@@ -143,7 +146,7 @@ footer{border-top:1px solid #3b3520;padding:24px 0;color:#c8bfa8}
   <section class="support">
     <div>
       <h2>Soporte Kivaro</h2>
-      <p class="muted">Te ayudamos a instalar, configurar y empezar a vender.</p>
+      <p class="muted">Te ayudamos a configurar el negocio y dejar Kivaro listo para vender.</p>
     </div>
     <div>
       <strong>WhatsApp:</strong> +54 9 380 434-5006<br>
@@ -173,15 +176,38 @@ function seleccionarPlan(plan) {
   location.hash = '';
 }
 
-async function pagarPlan() {
-  const status = document.getElementById('status');
-  const body = {
+function datosInteresado() {
+  return {
     plan: document.getElementById('plan').value,
     nombre: document.getElementById('nombre').value.trim(),
     email: document.getElementById('email').value.trim(),
     telefono: document.getElementById('telefono').value.trim(),
     negocio: document.getElementById('negocio').value.trim()
   };
+}
+
+function nombrePlan(plan) {
+  if (plan === 'prueba') return 'Alta + prueba inicial - $30.000';
+  if (plan === 'premium') return 'Premium - $200.000/mes';
+  return 'Básico - $100.000/mes';
+}
+
+function consultarWhatsApp() {
+  const body = datosInteresado();
+  const mensaje = [
+    'Hola, quiero consultar por Kivaro.',
+    `Plan: ${nombrePlan(body.plan)}`,
+    body.nombre ? `Nombre: ${body.nombre}` : '',
+    body.negocio ? `Negocio: ${body.negocio}` : '',
+    body.telefono ? `WhatsApp: ${body.telefono}` : '',
+    body.email ? `Email: ${body.email}` : ''
+  ].filter(Boolean).join('\n');
+  window.open(`https://wa.me/5493804345006?text=${encodeURIComponent(mensaje)}`, '_blank', 'noopener');
+}
+
+async function pagarPlan() {
+  const status = document.getElementById('status');
+  const body = datosInteresado();
   if (!body.nombre || !body.email || !body.telefono || !body.negocio) {
     status.textContent = 'Completá todos los datos para continuar.';
     return;

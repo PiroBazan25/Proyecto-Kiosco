@@ -65,6 +65,16 @@ router.post('/:id/fiado', verificarToken, async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Cliente no encontrado' });
     }
+    if (venta_id) {
+      const venta = await client.query(
+        'SELECT id FROM ventas WHERE id = $1 AND local_id = $2',
+        [venta_id, req.usuario.local_id]
+      );
+      if (venta.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Venta no encontrada para este local' });
+      }
+    }
     const fiado = await client.query(
       'INSERT INTO fiado (local_id, cliente_id, venta_id, monto) VALUES ($1,$2,$3,$4) RETURNING *',
       [req.usuario.local_id, req.params.id, venta_id || null, montoNumero]

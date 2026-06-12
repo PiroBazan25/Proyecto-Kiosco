@@ -7,6 +7,7 @@ async function enviarCredenciales({ nombre, email, pin, localNombre, rol }) {
     console.log('Email no enviado - RESEND_API_KEY no configurada');
     return false;
   }
+  const appUrl = process.env.PUBLIC_URL || 'https://kivaro-533029488428.southamerica-east1.run.app';
   try {
     await resend.emails.send({
       from: 'Kivaro <onboarding@resend.dev>',
@@ -30,7 +31,7 @@ async function enviarCredenciales({ nombre, email, pin, localNombre, rol }) {
           <div style="background:#fef3c7;padding:16px;border-radius:8px;margin:20px 0">
             <p style="margin:0">⚠️ <strong>Importante:</strong> Guardá estas credenciales en un lugar seguro.</p>
           </div>
-          <a href="https://proyecto-kiosco-production.up.railway.app" 
+          <a href="${appUrl}"
              style="background:#3b82f6;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block">
             Ingresar al sistema →
           </a>

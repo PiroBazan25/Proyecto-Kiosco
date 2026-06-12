@@ -69,6 +69,17 @@ router.post('/', verificarToken, async (req, res) => {
       });
     }
 
+    if (proveedor_id) {
+      const proveedor = await client.query(
+        'SELECT id, nombre FROM proveedores WHERE id = $1 AND local_id = $2',
+        [proveedor_id, req.usuario.local_id]
+      );
+      if (proveedor.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Proveedor no encontrado para este local' });
+      }
+    }
+
     const compraResult = await client.query(
       'INSERT INTO compras (local_id, usuario_id, proveedor_id, proveedor_nombre, total, notas) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
       [req.usuario.local_id, req.usuario.id, proveedor_id, proveedor_nombre, total, notas]

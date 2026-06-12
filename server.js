@@ -1,5 +1,5 @@
-process.env.TZ = 'UTC';
 require('dotenv').config();
+process.env.TZ = process.env.TZ || 'America/Argentina/Buenos_Aires';
 
 const express = require('express');
 const cors = require('cors');
@@ -9,9 +9,46 @@ require('./db');
 
 const app = express();
 
-app.use(cors());
+app.disable('x-powered-by');
 
-app.use(express.json());
+const allowedOrigins = new Set(
+  (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || process.env.PUBLIC_URL || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean)
+);
+
+function isAllowedOrigin(origin, req) {
+  if (!origin) return true;
+  try {
+    const originUrl = new URL(origin);
+    const host = req.get('host');
+    if (originUrl.host === host) return true;
+    if (originUrl.hostname === 'localhost' || originUrl.hostname === '127.0.0.1') return true;
+    return allowedOrigins.has(origin);
+  } catch (err) {
+    return false;
+  }
+}
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (req.headers['x-forwarded-proto'] === 'https' || req.secure) {
+    res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+  }
+  next();
+});
+
+app.use(cors((req, callback) => {
+  callback(null, {
+    origin: isAllowedOrigin(req.header('Origin'), req)
+  });
+}));
+
+app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api/auth', require('./routes/auth'));
